@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dyżury OIT - System Planowania</title>
+  <title>Dyżury OIT - WSM Poznań</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     @media print {
       .no-print { display: none !important; }
-      body { background: white !important; font-size: 11px; }
+      body { background: white !important; font-size: 11px; color: black !important; }
       .print-border { border: 1px solid #cbd5e1 !important; }
       .page-break { page-break-inside: avoid; }
     }
@@ -75,16 +75,22 @@
       <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-wrap justify-between items-center gap-4">
         
         <div class="flex flex-wrap items-end gap-3 w-full md:w-auto">
-          <div class="w-full sm:w-72">
+          <div class="w-full sm:w-64">
             <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Lekarz</label>
             <select id="doctor-select" onchange="handleDoctorChange()" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-800 font-semibold focus:ring-2 focus:ring-blue-500 outline-none">
               <option value="">-- Wybierz nazwisko z listy --</option>
             </select>
           </div>
 
-          <div class="w-36">
-            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Chcę dyżurów</label>
-            <input type="number" id="doctor-target-shifts" min="0" max="15" value="6" onchange="handleTargetShiftsChange()" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-800 font-semibold focus:ring-2 focus:ring-blue-500 outline-none">
+          <div class="flex items-center space-x-2">
+            <div class="w-24">
+              <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Min dyż.</label>
+              <input type="number" id="doctor-min-shifts" min="0" max="15" value="5" onchange="handleTargetShiftsChange()" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-2 text-slate-800 font-semibold focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+            <div class="w-24">
+              <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Max dyż.</label>
+              <input type="number" id="doctor-max-shifts" min="0" max="15" value="7" onchange="handleTargetShiftsChange()" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-2 text-slate-800 font-semibold focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
           </div>
         </div>
 
@@ -96,13 +102,13 @@
 
         <div class="flex flex-wrap gap-2 text-xs">
           <span class="inline-flex items-center px-2.5 py-1 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
-            <span class="w-2 h-2 rounded-full bg-emerald-500 mr-1.5"></span> Preferowany (Chcę)
+            <span class="w-2 h-2 rounded-full bg-emerald-500 mr-1.5"></span> Chcę (preferowany)
           </span>
           <span class="inline-flex items-center px-2.5 py-1 rounded bg-blue-50 text-blue-700 border border-blue-200">
-            <span class="w-2 h-2 rounded-full bg-blue-500 mr-1.5"></span> Dostępny (Mogę)
+            <span class="w-2 h-2 rounded-full bg-blue-500 mr-1.5"></span> Mogę (dostępny)
           </span>
           <span class="inline-flex items-center px-2.5 py-1 rounded bg-rose-50 text-rose-700 border border-rose-200">
-            <span class="w-2 h-2 rounded-full bg-rose-500 mr-1.5"></span> Niedostępny
+            <span class="w-2 h-2 rounded-full bg-rose-500 mr-1.5"></span> Nie mogę
           </span>
         </div>
       </div>
@@ -110,8 +116,8 @@
       <div class="bg-blue-50 border-l-4 border-blue-600 p-4 rounded-r-lg text-sm text-blue-900 flex items-start space-x-3">
         <i class="fa-solid fa-info-circle text-blue-600 text-lg mt-0.5"></i>
         <div>
-          <p class="font-semibold">Podaj docelową liczbę dyżurów na ten miesiąc i zaznacz preferowane dni.</p>
-          <p class="text-xs text-blue-700 mt-0.5">Klikaj w kafelki kalendarza, aby zmienić dyspozycyjność (zielony / niebieski / czerwony).</p>
+          <p class="font-semibold">Zadeklaruj przedział dyżurów (Min - Max) oraz kliknij dni w kalendarzu.</p>
+          <p class="text-xs text-blue-700 mt-0.5">System automatycznie ignoruje lekarzy bez zaznaczonej dyspozycji w danym dniu.</p>
         </div>
       </div>
 
@@ -128,7 +134,7 @@
       <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-wrap justify-between items-center gap-4 no-print">
         <div>
           <h2 class="text-lg font-bold text-slate-800">Miesięczny Harmonogram Dyżurów OIT</h2>
-          <p class="text-xs text-slate-500">Zasada: dokładnie 4 dyżurnych na dobę, w tym minimum 1 specjalista.</p>
+          <p class="text-xs text-slate-500">Optimum: 2 spec + 2 rez (lub 3 spec + 1 rez). Minimum: 1 spec.</p>
         </div>
 
         <div class="flex flex-wrap items-center gap-2">
@@ -160,12 +166,12 @@
             <thead>
               <tr class="bg-slate-100 text-slate-600 uppercase text-xs border-b border-slate-200">
                 <th class="p-3 w-28">Doba</th>
-                <th class="p-3">Dyżurny 1 (Specjalista)</th>
+                <th class="p-3">Dyżurny 1</th>
                 <th class="p-3">Dyżurny 2</th>
                 <th class="p-3">Dyżurny 3</th>
                 <th class="p-3">Dyżurny 4</th>
                 <th class="p-3 w-36 text-center no-print">Dyspozycyjność</th>
-                <th class="p-3 w-28 text-center no-print">Status</th>
+                <th class="p-3 w-32 text-center no-print">Status</th>
               </tr>
             </thead>
             <tbody id="schedule-table-body" class="divide-y divide-slate-100"></tbody>
@@ -173,10 +179,15 @@
         </div>
       </div>
 
-      <!-- PODSUMOWANIE OBSADY (WIDOCZNE NA EKRANIE, WYCIĘTE Z PDF) -->
-      <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 no-print">
-        <h3 class="font-bold text-sm text-slate-700 uppercase tracking-wider mb-3">Zaplanowane dyżury personelu</h3>
-        <div id="stats-container" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4"></div>
+      <!-- PODSUMOWANIE DLA KOORDYNATORA (UKRYTE DLA ZWYKŁYCH LEKARZY I NA PDF) -->
+      <div id="coordinator-stats-panel" style="display: none;" class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 no-print">
+        <div class="flex items-center justify-between mb-3 border-b border-slate-100 pb-2">
+          <h3 class="font-bold text-sm text-slate-800 uppercase tracking-wider">
+            Podsumowanie obsady (Widok Koordynatora)
+          </h3>
+          <span class="text-xs text-slate-500">Dane deklaracji są niewidoczne dla personelu</span>
+        </div>
+        <div id="stats-container" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3"></div>
       </div>
 
       <!-- PODPISY DO WYDRUKU PDF -->
@@ -330,7 +341,7 @@
     let state = {
       admin_pin: "1234",
       doctors: [],
-      monthly_limits: {}, // klucz: `${doctor_id}_${year}-${month}` -> target_shifts
+      monthly_limits: {}, // klucz: `${doctor_id}_${year}-${month}` -> { min: X, max: Y }
       availabilities: {},
       shifts: {}
     };
@@ -368,26 +379,25 @@
 
     async function fetchAllDataFromSupabase() {
       try {
-        // 1. PIN
         const { data: pinData } = await supabaseClient.from('app_settings').select('*').eq('key', 'admin_pin').single();
         if (pinData) state.admin_pin = pinData.value;
 
-        // 2. Lekarze
         const { data: docsData } = await supabaseClient.from('doctors').select('*').order('name');
         if (docsData) {
           state.doctors = docsData;
         }
 
-        // 3. Limity miesięczne
         const { data: limitsData } = await supabaseClient.from('doctor_monthly_limits').select('*');
         if (limitsData) {
           state.monthly_limits = {};
           limitsData.forEach(row => {
-            state.monthly_limits[`${row.doctor_id}_${row.month}`] = row.target_shifts;
+            state.monthly_limits[`${row.doctor_id}_${row.month}`] = {
+              min: row.min_shifts !== null && row.min_shifts !== undefined ? row.min_shifts : (row.target_shifts || 5),
+              max: row.max_shifts !== null && row.max_shifts !== undefined ? row.max_shifts : (row.target_shifts || 7)
+            };
           });
         }
 
-        // 4. Deklaracje
         const { data: availData } = await supabaseClient.from('availabilities').select('*');
         if (availData) {
           state.availabilities = {};
@@ -396,7 +406,6 @@
           });
         }
 
-        // 5. Grafiki (Shifts)
         const { data: shiftData } = await supabaseClient.from('shifts').select('*');
         if (shiftData) {
           state.shifts = {};
@@ -411,7 +420,7 @@
         }
 
         populateDoctorSelect();
-        updateTargetShiftsInput();
+        updateTargetShiftsInputs();
         renderDoctorCalendar();
         renderDoctorsAdminTable();
         renderScheduleTable();
@@ -477,17 +486,20 @@
       const badge = document.getElementById("auth-status-badge");
       const coordControls = document.getElementById("coordinator-controls");
       const unlockBtn = document.getElementById("unlock-coord-btn");
+      const statsPanel = document.getElementById("coordinator-stats-panel");
 
       if (isCoordinator) {
         badge.className = "text-xs px-2.5 py-1 rounded-full bg-emerald-500 text-white font-semibold flex items-center";
         badge.innerHTML = `<i class="fa-solid fa-shield-halved mr-1.5"></i> Koordynator (Edycja aktywna)`;
         if (coordControls) coordControls.style.display = 'flex';
         if (unlockBtn) unlockBtn.style.display = 'none';
+        if (statsPanel) statsPanel.style.display = 'block';
       } else {
         badge.className = "text-xs px-2.5 py-1 rounded-full bg-blue-950 text-blue-300 border border-blue-800 flex items-center";
         badge.innerHTML = `<i class="fa-solid fa-user mr-1.5"></i> Tryb Lekarza (Odczyt)`;
         if (coordControls) coordControls.style.display = 'none';
         if (unlockBtn) unlockBtn.style.display = 'inline-flex';
+        if (statsPanel) statsPanel.style.display = 'none';
       }
       renderScheduleTable();
     }
@@ -514,15 +526,23 @@
       if (selectedDoctorId) select.value = selectedDoctorId;
     }
 
-    function updateTargetShiftsInput() {
-      const input = document.getElementById("doctor-target-shifts");
+    function updateTargetShiftsInputs() {
+      const minInput = document.getElementById("doctor-min-shifts");
+      const maxInput = document.getElementById("doctor-max-shifts");
       if (!selectedDoctorId) {
-        input.value = 6;
+        minInput.value = 5;
+        maxInput.value = 7;
         return;
       }
       const mKey = getCurrentMonthKey();
       const val = state.monthly_limits[`${selectedDoctorId}_${mKey}`];
-      input.value = (val !== undefined) ? val : 6;
+      if (val) {
+        minInput.value = val.min;
+        maxInput.value = val.max;
+      } else {
+        minInput.value = 5;
+        maxInput.value = 7;
+      }
     }
 
     async function handleTargetShiftsChange() {
@@ -530,32 +550,33 @@
         showToast("Najpierw wybierz swoje nazwisko z listy!", "error");
         return;
       }
-      const input = document.getElementById("doctor-target-shifts");
-      const target = parseInt(input.value) || 0;
+      const minVal = parseInt(document.getElementById("doctor-min-shifts").value) || 0;
+      const maxVal = parseInt(document.getElementById("doctor-max-shifts").value) || 0;
       const mKey = getCurrentMonthKey();
 
-      state.monthly_limits[`${selectedDoctorId}_${mKey}`] = target;
+      state.monthly_limits[`${selectedDoctorId}_${mKey}`] = { min: minVal, max: maxVal };
 
       await supabaseClient.from('doctor_monthly_limits').upsert({
         doctor_id: selectedDoctorId,
         month: mKey,
-        target_shifts: target
+        min_shifts: minVal,
+        max_shifts: maxVal
       }, { onConflict: 'doctor_id,month' });
 
-      showToast(`Zapisano cel: ${target} dyżurów`);
-      renderDoctorStats();
+      showToast(`Zapisano preferencję: ${minVal} - ${maxVal} dyżurów`);
+      if (isCoordinator) renderDoctorStats();
     }
 
     function handleDoctorChange() {
       selectedDoctorId = document.getElementById("doctor-select").value;
-      updateTargetShiftsInput();
+      updateTargetShiftsInputs();
       renderDoctorCalendar();
     }
 
     function changeMonth(delta) {
       currentDate.setMonth(currentDate.getMonth() + delta);
       updateMonthLabel();
-      updateTargetShiftsInput();
+      updateTargetShiftsInputs();
       renderDoctorCalendar();
       if (document.getElementById('view-schedule').style.display !== 'none') {
         renderScheduleTable();
@@ -601,13 +622,13 @@
 
         if (status === 'preferred') {
           bgClass = "bg-emerald-50 border-emerald-400 text-emerald-900";
-          statusBadge = `<span class="text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">Preferowany</span>`;
+          statusBadge = `<span class="text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">Chcę</span>`;
         } else if (status === 'available') {
           bgClass = "bg-blue-50 border-blue-400 text-blue-900";
-          statusBadge = `<span class="text-xs font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded">Dostępny</span>`;
+          statusBadge = `<span class="text-xs font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded">Mogę</span>`;
         } else if (status === 'unavailable') {
           bgClass = "bg-rose-50 border-rose-300 text-rose-900";
-          statusBadge = `<span class="text-xs font-bold text-rose-700 bg-rose-100 px-2 py-0.5 rounded">Niedostępny</span>`;
+          statusBadge = `<span class="text-xs font-bold text-rose-700 bg-rose-100 px-2 py-0.5 rounded">Nie mogę</span>`;
         }
 
         card.className = `h-24 border rounded-lg p-2.5 flex flex-col justify-between cursor-pointer transition select-none ${bgClass}`;
@@ -631,21 +652,25 @@
         return;
       }
 
-      const cycle = { 'none': 'available', 'available': 'preferred', 'preferred': 'unavailable', 'unavailable': 'available' };
+      const cycle = { 'none': 'available', 'available': 'preferred', 'preferred': 'unavailable', 'unavailable': 'none' };
       const current = state.availabilities[`${selectedDoctorId}_${dateStr}`] || 'none';
       const nextStatus = cycle[current];
 
       state.availabilities[`${selectedDoctorId}_${dateStr}`] = nextStatus;
       renderDoctorCalendar();
 
-      await supabaseClient.from('availabilities').upsert({
-        doctor_id: selectedDoctorId,
-        date: dateStr,
-        status: nextStatus
-      }, { onConflict: 'doctor_id,date' });
+      if (nextStatus === 'none') {
+        await supabaseClient.from('availabilities').delete().match({ doctor_id: selectedDoctorId, date: dateStr });
+      } else {
+        await supabaseClient.from('availabilities').upsert({
+          doctor_id: selectedDoctorId,
+          date: dateStr,
+          status: nextStatus
+        }, { onConflict: 'doctor_id,date' });
+      }
     }
 
-    // GRAFIK ODDZIAŁU: 4 DYŻURNYCH
+    // GRAFIK ODDZIAŁU: 4 STANOWISKA Z OZNACZENIEM PROBLEMÓW
     function renderScheduleTable() {
       const tbody = document.getElementById("schedule-table-body");
       if (!tbody) return;
@@ -669,16 +694,25 @@
         const d3 = state.doctors.find(d => d.id === currentShift.doctor3_id);
         const d4 = state.doctors.find(d => d.id === currentShift.doctor4_id);
 
-        const hasSpecialist = [d1, d2, d3, d4].some(d => d && d.role === 'specialist');
-        const isComplete = d1 && d2 && d3 && d4;
+        const assignedDocs = [d1, d2, d3, d4].filter(Boolean);
+        const hasSpecialist = assignedDocs.some(d => d.role === 'specialist');
+        const count = assignedDocs.length;
+        const missingCount = 4 - count;
 
-        let statusHtml = `<span class="text-rose-500 font-bold text-xs"><i class="fa-solid fa-circle-exclamation"></i> Brak 4</span>`;
-        if (isComplete) {
-          if (hasSpecialist) {
-            statusHtml = `<span class="text-emerald-600 font-bold text-xs"><i class="fa-solid fa-check"></i> Zgodny (Spec+)</span>`;
-          } else {
-            statusHtml = `<span class="text-amber-500 font-bold text-xs"><i class="fa-solid fa-triangle-exclamation"></i> Brak Specjalisty!</span>`;
-          }
+        let statusHtml = "";
+        let rowClass = isWeekend ? "bg-slate-50 print-border" : "hover:bg-slate-50 print-border";
+
+        if (missingCount > 0 && !hasSpecialist) {
+          statusHtml = `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-rose-100 text-rose-800 border border-rose-300"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Brak ${missingCount} & Spec</span>`;
+          rowClass = "bg-rose-50/70 border-l-4 border-l-rose-500 print-border";
+        } else if (missingCount > 0) {
+          statusHtml = `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300"><i class="fa-solid fa-circle-exclamation mr-1"></i> Brak ${missingCount} osób</span>`;
+          rowClass = "bg-amber-50/50 border-l-4 border-l-amber-500 print-border";
+        } else if (!hasSpecialist) {
+          statusHtml = `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-rose-100 text-rose-800 border border-rose-300"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Brak Specjalisty</span>`;
+          rowClass = "bg-rose-50/70 border-l-4 border-l-rose-500 print-border";
+        } else {
+          statusHtml = `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200"><i class="fa-solid fa-check mr-1"></i> Komplet</span>`;
         }
 
         let availCount = 0;
@@ -690,7 +724,7 @@
         const dayName = ['Nd','Pn','Wt','Śr','Cz','Pt','Sb'][dayOfWeek];
 
         const tr = document.createElement("tr");
-        tr.className = isWeekend ? "bg-slate-50 print-border" : "hover:bg-slate-50 print-border";
+        tr.className = rowClass;
         tr.innerHTML = `
           <td class="p-3 font-semibold ${isWeekend ? 'text-indigo-600' : 'text-slate-700'}">
             ${day} (${dayName})
@@ -700,7 +734,7 @@
           <td class="p-2">${renderDoctorSlot(dateStr, 3, currentShift.doctor3_id, d3)}</td>
           <td class="p-2">${renderDoctorSlot(dateStr, 4, currentShift.doctor4_id, d4)}</td>
           <td class="p-2 text-center no-print">
-            <button onclick="openAvailModal('${dateStr}', '${day} (${dayName})')" class="text-xs bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-600 px-2 py-1 rounded border border-slate-200 transition">
+            <button onclick="openAvailModal('${dateStr}', '${day} (${dayName})')" class="text-xs bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-600 px-2 py-1 rounded border border-slate-200 transition font-medium">
               <i class="fa-solid fa-users mr-1 text-slate-400"></i> ${availCount} dostępnych
             </button>
           </td>
@@ -709,33 +743,63 @@
         tbody.appendChild(tr);
       }
 
-      renderDoctorStats();
+      if (isCoordinator) renderDoctorStats();
     }
 
+    // ROZWIJANA LISTA: NAJPIERW LEKARZE Z DYSPOZYCJĄ NA DANY DZIEŃ
     function renderDoctorSlot(dateStr, slotIndex, currentId, docObj) {
       if (!isCoordinator) {
-        if (!docObj) return `<span class="text-slate-400 italic text-xs">-- Wolny wakat --</span>`;
+        if (!docObj) return `<span class="text-rose-400 italic text-xs font-semibold bg-rose-50 px-2 py-1 rounded border border-rose-200">-- Wolny wakat --</span>`;
         return `
-          <div class="text-xs font-semibold text-slate-800">
-            ${docObj.name}
+          <div class="text-xs font-semibold text-slate-800 flex items-center">
+            <span>${docObj.name}</span>
             <span class="ml-1 text-[10px] px-1 py-0.2 rounded ${docObj.role === 'specialist' ? 'bg-blue-100 text-blue-800' : 'bg-emerald-100 text-emerald-800'}">
-              ${docObj.role === 'specialist' ? '★ Spec' : 'Rez'}
+              ${docObj.role === 'specialist' ? 'Spec' : 'Rez'}
             </span>
           </div>
         `;
       }
 
-      let options = `<option value="">-- Wolny wakat --</option>`;
+      // Podział na zadeklarowanych i resztę
+      const declaredDocs = [];
+      const otherDocs = [];
+
       state.doctors.forEach(doc => {
-        const isSel = doc.id === currentId ? 'selected' : '';
-        const roleTag = doc.role === 'specialist' ? '★ Spec' : 'Rez';
-        options += `<option value="${doc.id}" ${isSel}>${doc.name} (${roleTag})</option>`;
+        const st = state.availabilities[`${doc.id}_${dateStr}`];
+        if (st === 'preferred' || st === 'available') {
+          declaredDocs.push({ doc, status: st });
+        } else {
+          otherDocs.push({ doc, status: st || 'none' });
+        }
       });
+
+      // Sortowanie zadeklarowanych: 'preferred' na samej górze
+      declaredDocs.sort((a, b) => (b.status === 'preferred' ? 1 : 0) - (a.status === 'preferred' ? 1 : 0));
+
+      let optGroupDeclared = `<optgroup label="⭐ Zgłoszeni na ten dzień (Chcę / Mogę)">`;
+      declaredDocs.forEach(({ doc, status }) => {
+        const isSel = doc.id === currentId ? 'selected' : '';
+        const tag = status === 'preferred' ? 'Chcę' : 'Mogę';
+        const role = doc.role === 'specialist' ? 'Specjalista' : 'Rezydent';
+        optGroupDeclared += `<option value="${doc.id}" ${isSel} class="font-bold text-emerald-700">✓ [${tag}] ${doc.name} (${role})</option>`;
+      });
+      optGroupDeclared += `</optgroup>`;
+
+      let optGroupOthers = `<optgroup label="⚠️ Pozostali lekarze (brak deklaracji / niedostępny)">`;
+      otherDocs.forEach(({ doc, status }) => {
+        const isSel = doc.id === currentId ? 'selected' : '';
+        const tag = status === 'unavailable' ? 'Niedostępny' : 'Brak deklaracji';
+        const role = doc.role === 'specialist' ? 'Specjalista' : 'Rezydent';
+        optGroupOthers += `<option value="${doc.id}" ${isSel} class="text-slate-500">[${tag}] ${doc.name} (${role})</option>`;
+      });
+      optGroupOthers += `</optgroup>`;
 
       return `
         <select onchange="updateShiftSlot('${dateStr}', ${slotIndex}, this.value)" 
-          class="w-full text-xs bg-transparent border border-slate-200 rounded p-1.5 focus:bg-white focus:ring-1 focus:ring-blue-500">
-          ${options}
+          class="w-full text-xs bg-white border ${docObj ? 'border-slate-300' : 'border-rose-400 bg-rose-50/50'} rounded p-1.5 focus:ring-1 focus:ring-blue-500 outline-none">
+          <option value="">-- Wolny wakat --</option>
+          ${declaredDocs.length > 0 ? optGroupDeclared : ''}
+          ${optGroupOthers}
         </select>
       `;
     }
@@ -761,7 +825,7 @@
         if (status === 'preferred') {
           badge = `<span class="font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">Preferuje (Chce)</span>`;
         } else if (status === 'available') {
-          badge = `<span class="font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded">Dostępny</span>`;
+          badge = `<span class="font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded">Dostępny (Może)</span>`;
         } else if (status === 'unavailable') {
           badge = `<span class="font-bold text-rose-700 bg-rose-100 px-2 py-0.5 rounded">Niedostępny / Urlop</span>`;
         }
@@ -785,22 +849,15 @@
       document.getElementById("modal-avail-details").style.display = 'none';
     }
 
-    // AUTOMATYCZNE PLANOWANIE Z UWZGLĘDNIENIEM DEKLAROWANEGO LIMITU MIESIĘCZNEGO
+    // ==================== ALGORYTM PLANOWANIA OIT ====================
+    // Zasady:
+    // 1. TYLKO zadeklarowani ('preferred' / 'available').
+    // 2. Hierarchia składu: (2 spec + 2 rez) -> (3 spec + 1 rez) -> (1 spec + 3 rez).
+    // 3. Brak wciskania na siłę – wolne wakaty zostają puste.
     function generateAutomaticSchedule() {
       if (!isCoordinator) return;
       const { numDays, year, month } = getDaysInCurrentMonth();
       const mKey = getCurrentMonthKey();
-      const specialists = state.doctors.filter(d => d.role === 'specialist');
-      const allDocs = [...state.doctors];
-
-      if (specialists.length === 0) {
-        showToast("Brak specjalistów w bazie!", "error");
-        return;
-      }
-      if (allDocs.length < 4) {
-        showToast("Wprowadź min. 4 lekarzy do zespołu!", "error");
-        return;
-      }
 
       const shiftCounts = {};
       state.doctors.forEach(d => { shiftCounts[d.id] = 0; });
@@ -809,65 +866,73 @@
       for (let day = 1; day <= numDays; day++) {
         const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         const prevDateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day - 1).padStart(2, '0')}`;
+        
         const prevAssigned = prevDateStr in newShifts 
           ? [
               newShifts[prevDateStr].doctor1_id, 
               newShifts[prevDateStr].doctor2_id, 
               newShifts[prevDateStr].doctor3_id,
               newShifts[prevDateStr].doctor4_id
-            ] 
+            ].filter(Boolean)
           : [];
 
-        const getCandidateScore = (doc) => {
-          if (prevAssigned.includes(doc.id)) return -9999; // Odpoczynek po dyżurze
-          const pref = state.availabilities[`${doc.id}_${dateStr}`] || 'available';
-          if (pref === 'unavailable') return -9999; // Niedostępny
+        // Filtrujemy TYLKO lekarzy z deklaracją na ten dzień i z zachowaniem 24h odpoczynku
+        const eligibleDocs = state.doctors.filter(doc => {
+          if (prevAssigned.includes(doc.id)) return false; // Odpoczynek po dyżurze
+          const pref = state.availabilities[`${doc.id}_${dateStr}`];
+          return pref === 'preferred' || pref === 'available'; // Bezwzględny warunek deklaracji
+        });
 
-          const target = state.monthly_limits[`${doc.id}_${mKey}`] || 6;
-          // Jeśli lekarz osiągnął swój cel miesięczny, zmniejsz jego wagę
-          let score = 100 - (shiftCounts[doc.id] * 12);
-          if (shiftCounts[doc.id] >= target) score -= 80;
-          if (pref === 'preferred') score += 50;
-
+        const getDocScore = (doc) => {
+          const pref = state.availabilities[`${doc.id}_${dateStr}`];
+          const limits = state.monthly_limits[`${doc.id}_${mKey}`] || { min: 5, max: 7 };
+          
+          let score = 100 - (shiftCounts[doc.id] * 15);
+          if (pref === 'preferred') score += 40; // pierwszeństwo dla chcących
+          if (shiftCounts[doc.id] < limits.min) score += 30; // priorytet dobicia do minimum
+          if (shiftCounts[doc.id] >= limits.max) score -= 90; // hamulec po przekroczeniu maksimum
           return score;
         };
 
-        // 1. Slot 1 = Specjalista
-        const sortedSpecs = [...specialists].sort((a, b) => getCandidateScore(b) - getCandidateScore(a));
-        const chosenSpec = sortedSpecs[0] && getCandidateScore(sortedSpecs[0]) > -5000 ? sortedSpecs[0] : null;
+        const availSpecs = eligibleDocs.filter(d => d.role === 'specialist').sort((a, b) => getDocScore(b) - getDocScore(a));
+        const availRes = eligibleDocs.filter(d => d.role === 'resident').sort((a, b) => getDocScore(b) - getDocScore(a));
 
-        const assignedToday = [];
-        if (chosenSpec) {
-          assignedToday.push(chosenSpec.id);
-          shiftCounts[chosenSpec.id]++;
+        const chosenToday = [];
+
+        // Dobór według proporcji:
+        // Wariant 1: Mamy >= 2 spec i >= 2 rez -> bierzemy 2 spec + 2 rez
+        if (availSpecs.length >= 2 && availRes.length >= 2) {
+          chosenToday.push(availSpecs[0], availSpecs[1], availRes[0], availRes[1]);
+        }
+        // Wariant 2: Nadwyżka specjalistów (>= 3 spec i >= 1 rez) -> 3 spec + 1 rez
+        else if (availSpecs.length >= 3 && availRes.length >= 1) {
+          chosenToday.push(availSpecs[0], availSpecs[1], availSpecs[2], availRes[0]);
+        }
+        // Wariant 3: Minimum specjalistyczne (>= 1 spec i >= 3 rez) -> 1 spec + 3 rez
+        else if (availSpecs.length >= 1 && availRes.length >= 3) {
+          chosenToday.push(availSpecs[0], availRes[0], availRes[1], availRes[2]);
+        }
+        // Wariant 4: Awaryjny / niepełny skład (bierzemy tylu specjalistów ilu jest, potem rezydentów, max do 4)
+        else {
+          availSpecs.forEach(s => { if (chosenToday.length < 4) chosenToday.push(s); });
+          availRes.forEach(r => { if (chosenToday.length < 4) chosenToday.push(r); });
         }
 
-        // 2. Sloty 2-4
-        for (let slot = assignedToday.length; slot < 4; slot++) {
-          const eligible = allDocs
-            .filter(d => !assignedToday.includes(d.id))
-            .sort((a, b) => getCandidateScore(b) - getCandidateScore(a));
+        // Aktualizacja liczników dyżurów
+        chosenToday.forEach(d => { shiftCounts[d.id]++; });
 
-          const candidate = eligible[0] && getCandidateScore(eligible[0]) > -5000 ? eligible[0] : null;
-          if (candidate) {
-            assignedToday.push(candidate.id);
-            shiftCounts[candidate.id]++;
-          } else {
-            assignedToday.push(null);
-          }
-        }
-
+        // Ułożenie na 4 stanowiska (jeśli brakuje, pozostają null/puste)
         newShifts[dateStr] = {
-          doctor1_id: assignedToday[0] || null,
-          doctor2_id: assignedToday[1] || null,
-          doctor3_id: assignedToday[2] || null,
-          doctor4_id: assignedToday[3] || null
+          doctor1_id: chosenToday[0] ? chosenToday[0].id : null,
+          doctor2_id: chosenToday[1] ? chosenToday[1].id : null,
+          doctor3_id: chosenToday[2] ? chosenToday[2].id : null,
+          doctor4_id: chosenToday[3] ? chosenToday[3].id : null
         };
       }
 
       state.shifts = newShifts;
       renderScheduleTable();
-      showToast("Wygenerowano grafik! Pamiętaj, aby kliknąć 'Zapisz grafik'.");
+      showToast("Wygenerowano grafik! Braki kadrowe oznaczono na czerwono.");
     }
 
     async function saveScheduleToSupabase(notify = true) {
@@ -911,15 +976,21 @@
 
       state.doctors.forEach(doc => {
         const count = counts[doc.id] || 0;
-        const target = state.monthly_limits[`${doc.id}_${mKey}`] || 6;
+        const limits = state.monthly_limits[`${doc.id}_${mKey}`] || { min: 5, max: 7 };
+        
+        let colorClass = "text-slate-700";
+        if (count < limits.min) colorClass = "text-amber-600 font-bold";
+        else if (count > limits.max) colorClass = "text-rose-600 font-bold";
+        else colorClass = "text-emerald-700 font-bold";
+
         const card = document.createElement("div");
-        card.className = "bg-slate-50 border border-slate-200 p-3 rounded-lg flex justify-between items-center";
+        card.className = "bg-slate-50 border border-slate-200 p-2.5 rounded-lg flex justify-between items-center text-xs";
         card.innerHTML = `
           <div>
-            <div class="text-xs font-semibold text-slate-700">${doc.name}</div>
-            <div class="text-[10px] text-slate-500">${doc.role === 'specialist' ? '★ Specjalista' : 'Rezydent'} (deklaracja: ${target})</div>
+            <div class="font-bold text-slate-800">${doc.name}</div>
+            <div class="text-[10px] text-slate-500">${doc.role === 'specialist' ? '★ Specjalista' : 'Rezydent'} (cel: ${limits.min}-${limits.max})</div>
           </div>
-          <span class="text-base font-bold ${count > target ? 'text-blue-700' : 'text-slate-700'}">${count}/${target}</span>
+          <span class="text-sm ${colorClass}">${count} / ${limits.min}-${limits.max}</span>
         `;
         statsDiv.appendChild(card);
       });
@@ -970,7 +1041,6 @@
         showToast("Dodano lekarza");
       } else {
         showToast("Błąd zapisu w bazie!", "error");
-        console.error(error);
       }
     }
 
