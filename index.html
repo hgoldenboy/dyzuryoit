@@ -40,7 +40,6 @@
   <style>
     body { font-feature-settings: "cv02", "cv03", "cv04", "cv11"; }
     
-    /* Arkusz pod 1 stronę A4 generowany do PDF */
     #pdf-render-area {
       width: 190mm;
       box-sizing: border-box;
@@ -209,7 +208,6 @@
             <span>Logowanie Koordynatora</span>
           </button>
 
-          <!-- Pobierz jako fizyczny plik PDF -->
           <button onclick="downloadExactPDF()" class="bg-slate-900 hover:bg-slate-800 text-white px-3.5 py-2 rounded-xl font-bold text-xs flex items-center space-x-1.5 shadow-xs transition">
             <i class="fa-solid fa-file-arrow-down text-rose-400"></i>
             <span>Pobierz PDF (1 strona A4)</span>
@@ -319,7 +317,7 @@
 
   </main>
 
-  <!-- ==================== UKRYTY DEDYKOWANY OBSZAR RENDEROWANIA PDF (1 STRONA A4) ==================== -->
+  <!-- ==================== OBSZAR PDF ==================== -->
   <div style="position: absolute; left: -9999px; top: -9999px;">
     <div id="pdf-render-area" class="p-4">
       <div class="flex justify-between items-end border-b-2 border-slate-900 pb-1.5 mb-2">
@@ -360,7 +358,7 @@
     </div>
   </div>
 
-  <!-- MODAL: KTO JEST DOSTĘPNY -->
+  <!-- MODALE -->
   <div id="modal-avail-details" style="display: none;" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 border border-slate-100">
       <div class="flex justify-between items-center mb-3 pb-2 border-b border-slate-100">
@@ -372,7 +370,6 @@
     </div>
   </div>
 
-  <!-- MODAL: EDYCJA LEKARZA -->
   <div id="modal-edit-doctor" style="display: none;" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 border border-slate-100">
       <div class="flex justify-between items-center mb-4 pb-2 border-b border-slate-100">
@@ -403,7 +400,6 @@
     </div>
   </div>
 
-  <!-- MODAL: PIN KOORDYNATORA -->
   <div id="modal-pin-auth" style="display: none;" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-6 text-center border border-slate-100">
       <div class="w-12 h-12 bg-brand-50 text-brand-600 rounded-2xl flex items-center justify-center mx-auto mb-3">
@@ -440,7 +436,6 @@
     let selectedDoctorId = "";
     let isCoordinator = false;
 
-    // Poprawny algorytm wyliczania Wielkanocy
     function getEasterSunday(year) {
       const a = year % 19;
       const b = Math.floor(year / 100);
@@ -459,9 +454,7 @@
       return new Date(year, month, day);
     }
 
-    // Dokładne sprawdzanie polskich świąt (bez pomyłek pierwszego dnia miesiąca)
     function isPolishPublicHoliday(year, month, day) {
-      // month: 0 = styczeń, 11 = grudzień
       const fixedHolidays = [
         { m: 0, d: 1 },   // 1 stycznia (Nowy Rok)
         { m: 0, d: 6 },   // 6 stycznia (Trzech Króli)
@@ -522,20 +515,6 @@
         const { data: docsData } = await supabaseClient.from('doctors').select('*').order('name');
         if (docsData && docsData.length > 0) {
           state.doctors = docsData;
-        } else {
-          // Jeśli baza jest jeszcze pusta, zainicjuj startową kadrę
-          const initialDocs = [
-            { name: "dr n. med. Jan Kowalski", role: "specialist" },
-            { name: "lek. Anna Nowak", role: "specialist" },
-            { name: "lek. Piotr Wiśniewski", role: "specialist" },
-            { name: "lek. Maria Zielińska", role: "resident" },
-            { name: "lek. Tomasz Kamiński", role: "resident" },
-            { name: "lek. Ewa Lewandowska", role: "resident" },
-            { name: "lek. Krzysztof Wójcik", role: "resident" },
-            { name: "lek. Magdalena Kozłowska", role: "resident" }
-          ];
-          const { data: inserted } = await supabaseClient.from('doctors').insert(initialDocs).select();
-          state.doctors = inserted || initialDocs;
         }
 
         const { data: limitsData } = await supabaseClient.from('doctor_monthly_limits').select('*');
@@ -1009,7 +988,7 @@
       document.getElementById("modal-avail-details").style.display = 'none';
     }
 
-    // ==================== SILNIK PLANOWANIA OBSADY ====================
+    // ==================== ZOPTYMALIZOWANY SILNIK PLANOWANIA OBSADY ====================
     function generateAutomaticSchedule() {
       if (!isCoordinator) return;
       const { numDays, year, month } = getDaysInCurrentMonth();
@@ -1023,6 +1002,7 @@
         const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         const prevDateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day - 1).padStart(2, '0')}`;
         
+        // Kto dyżurował wczoraj (wymóg 24h przerwy)
         const prevAssigned = prevDateStr in newShifts 
           ? [
               newShifts[prevDateStr].doctor1_id, 
@@ -1032,49 +1012,59 @@
             ].filter(Boolean)
           : [];
 
-        // TYLKO lekarze ze statusem Chcę lub Mogę i po 24h odpoczynku
+        // Filtrujemy tylko lekarzy z deklaracją 'preferred' lub 'available', którzy nie dyżurowali wczoraj
         const eligibleDocs = state.doctors.filter(doc => {
           if (prevAssigned.includes(doc.id)) return false;
           const pref = state.availabilities[`${doc.id}_${dateStr}`];
           return pref === 'preferred' || pref === 'available';
         });
 
+        // Wycena punktowa kandydata (im więcej punktów, tym wyżej na liście chętnych)
         const getDocScore = (doc) => {
           const pref = state.availabilities[`${doc.id}_${dateStr}`];
           const limits = state.monthly_limits[`${doc.id}_${mKey}`] || { min: 5, max: 7 };
           
-          let score = 100 - (shiftCounts[doc.id] * 15);
-          if (pref === 'preferred') score += 40;
-          if (shiftCounts[doc.id] < limits.min) score += 30;
-          if (shiftCounts[doc.id] >= limits.max) score -= 90;
+          let score = 200 - (shiftCounts[doc.id] * 20);
+          if (pref === 'preferred') score += 50; // Pierwszeństwo dla Chcę
+          if (shiftCounts[doc.id] < limits.min) score += 40; // Priorytet dobicia do minimum
+          if (shiftCounts[doc.id] >= limits.max) score -= 50; // Lekki hamulec, ale nie blokada absolutna
           return score;
         };
 
-        const availSpecs = eligibleDocs.filter(d => d.role === 'specialist').sort((a, b) => getDocScore(b) - getDocScore(a));
-        const availRes = eligibleDocs.filter(d => d.role === 'resident').sort((a, b) => getDocScore(b) - getDocScore(a));
+        let availSpecs = eligibleDocs.filter(d => d.role === 'specialist').sort((a, b) => getDocScore(b) - getDocScore(a));
+        let availRes = eligibleDocs.filter(d => d.role === 'resident').sort((a, b) => getDocScore(b) - getDocScore(a));
 
         const chosenToday = [];
 
-        // 1. Optimum: 2 spec + 2 rez
-        if (availSpecs.length >= 2 && availRes.length >= 2) {
-          chosenToday.push(availSpecs[0], availSpecs[1], availRes[0], availRes[1]);
-        }
-        // 2. Nadwyżka specjalistów: 3 spec + 1 rez
-        else if (availSpecs.length >= 3 && availRes.length >= 1) {
-          chosenToday.push(availSpecs[0], availSpecs[1], availSpecs[2], availRes[0]);
-        }
-        // 3. Minimum dopuszczalne: 1 spec + 3 rez
-        else if (availSpecs.length >= 1 && availRes.length >= 3) {
-          chosenToday.push(availSpecs[0], availRes[0], availRes[1], availRes[2]);
-        }
-        // 4. Skład niepełny / awaryjny
-        else {
-          availSpecs.forEach(s => { if (chosenToday.length < 4) chosenToday.push(s); });
-          availRes.forEach(r => { if (chosenToday.length < 4) chosenToday.push(r); });
+        // 1. Zapewnij min. 1 specjalistę na Stanowisku 1 (jeśli dostępny)
+        if (availSpecs.length > 0) {
+          chosenToday.push(availSpecs.shift());
         }
 
+        // 2. Wypełnij pozostałe sloty (do 4 osób) według preferencji:
+        // Optymalny model: dążymy do 2 spec + 2 rez lub 3 spec + 1 rez
+        while (chosenToday.length < 4 && (availSpecs.length > 0 || availRes.length > 0)) {
+          // Jeśli mamy już 1 spec, spróbujmy dobrać 2 rezydentów
+          const currentSpecs = chosenToday.filter(d => d.role === 'specialist').length;
+          const currentRes = chosenToday.filter(d => d.role === 'resident').length;
+
+          if (currentSpecs < 2 && availSpecs.length > 0) {
+            chosenToday.push(availSpecs.shift());
+          } else if (currentRes < 2 && availRes.length > 0) {
+            chosenToday.push(availRes.shift());
+          } else if (availRes.length > 0) {
+            chosenToday.push(availRes.shift());
+          } else if (availSpecs.length > 0) {
+            chosenToday.push(availSpecs.shift());
+          } else {
+            break;
+          }
+        }
+
+        // Zwiększ licznik dyżurów przydzielonym lekarzom
         chosenToday.forEach(d => { shiftCounts[d.id]++; });
 
+        // Przypisz lekarzy do stanowisk (braki pozostają jako null)
         newShifts[dateStr] = {
           doctor1_id: chosenToday[0] ? chosenToday[0].id : null,
           doctor2_id: chosenToday[1] ? chosenToday[1].id : null,
@@ -1085,7 +1075,7 @@
 
       state.shifts = newShifts;
       renderScheduleTable();
-      showToast("Wygenerowano grafik! Braki oznaczono na czerwono.");
+      showToast("Wygenerowano grafik! Wszystkie dostępne osoby zostały przydzielone.");
     }
 
     async function saveScheduleToSupabase(notify = true) {
@@ -1237,7 +1227,7 @@
       showToast("Lekarz usunięty");
     }
 
-    // ==================== GENEROWANIE CZYSTEGO PDF NA 1 STRONĘ A4 ====================
+    // ==================== GENEROWANIE CZYSTEGO PDF ====================
     function downloadExactPDF() {
       const pdfTableBody = document.getElementById("pdf-table-body");
       pdfTableBody.innerHTML = "";
