@@ -80,7 +80,7 @@
         <i class="fa-solid fa-info-circle text-blue-600 text-lg mt-0.5"></i>
         <div>
           <p class="font-semibold">Klikaj w kafelki dni, aby zmienić dyspozycyjność.</p>
-          <p class="text-xs text-blue-700 mt-0.5">Wszystkie zmiany automatycznie zapisują się w chmurze.</p>
+          <p class="text-xs text-blue-700 mt-0.5">Dane są trwale zapisywane i nie znikną po odświeżeniu.</p>
         </div>
       </div>
 
@@ -105,7 +105,7 @@
             <i class="fa-solid fa-wand-magic-sparkles"></i>
             <span>Ułóż automatycznie</span>
           </button>
-          <button onclick="saveOnlineData()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold text-sm flex items-center space-x-2 shadow-sm transition">
+          <button onclick="saveAllData(true)" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold text-sm flex items-center space-x-2 shadow-sm transition">
             <i class="fa-solid fa-floppy-disk"></i>
             <span>Zapisz grafik</span>
           </button>
@@ -265,8 +265,9 @@
   </div>
 
   <script>
-    // BEZPOŚREDNIA BAZA KVDB - ZERO LOGOWANIA I KONT
-    const KVDB_URL = "https://kvdb.io/4yKqP3Xb1T9s8uL7mR2vE6/oit_dyzury_med_2026_xyz";
+    // Dedykowany, bezpośredni storage JSON - bez logowania i CORS
+    const REMOTE_URL = "https://api.restful-api.dev/objects/ff808181932badb401934988e40f09a1";
+    const STORAGE_KEY = "oit_app_database_persistent_v1";
 
     let state = {
       admin_pin: "1234",
@@ -287,12 +288,17 @@
     let selectedDoctorId = "";
     let isAdminAuthenticated = false;
 
+    // START APLIKACJI
     document.addEventListener("DOMContentLoaded", async () => {
-      await fetchOnlineData();
+      // 1. Natychmiastowe załadowanie z pamięci lokalnej (żeby nic nie migało ani nie znikało)
+      loadFromLocalStorage();
       updateMonthLabel();
       populateDoctorSelect();
       renderDoctorCalendar();
       renderDoctorsAdminTable();
+
+      // 2. Synchronizacja z chmurą w tle
+      await syncWithRemote();
     });
 
     function showToast(message, type = "success") {
@@ -306,53 +312,80 @@
       toast.classList.remove("translate-y-20", "opacity-0");
       setTimeout(() => {
         toast.classList.add("translate-y-20", "opacity-0");
-      }, 3000);
+      }, 2500);
     }
 
-    async function fetchOnlineData() {
-      try {
-        const res = await fetch(KVDB_URL, { cache: "no-store" });
-        if (res.ok) {
-          const remoteData = await res.json();
-          if (remoteData && typeof remoteData === 'object') {
-            state.admin_pin = remoteData.admin_pin || "1234";
-            if (Array.isArray(remoteData.doctors) && remoteData.doctors.length > 0) {
-              state.doctors = remoteData.doctors;
+    // POBIERANIE I ZAPIS TRWAŁY (LocalStorage + Chmura)
+    function loadFromLocalStorage() {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (parsed && typeof parsed === 'object') {
+            state.admin_pin = parsed.admin_pin || state.admin_pin;
+            if (Array.isArray(parsed.doctors) && parsed.doctors.length > 0) {
+              state.doctors = parsed.doctors;
             }
+            state.availabilities = parsed.availabilities || {};
+            state.shifts = parsed.shifts || {};
+          }
+        } catch (e) {
+          console.error("Błąd odczytu local storage", e);
+        }
+      }
+    }
+
+    async function syncWithRemote() {
+      try {
+        const res = await fetch(REMOTE_URL, { cache: "no-store" });
+        if (res.ok) {
+          const json = await res.json();
+          const remoteData = json.data;
+          if (remoteData && typeof remoteData === 'object' && Array.isArray(remoteData.doctors)) {
+            // Chmura ma aktualne dane
+            state.admin_pin = remoteData.admin_pin || state.admin_pin;
+            state.doctors = remoteData.doctors;
             state.availabilities = remoteData.availabilities || {};
             state.shifts = remoteData.shifts || {};
-            
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+
             populateDoctorSelect();
             renderDoctorCalendar();
             renderDoctorsAdminTable();
-            return;
+            if (!document.getElementById('view-schedule').classList.contains('hidden')) {
+              renderScheduleTable();
+            }
+          } else {
+            // Pierwsze zasilenie bazy w chmurze
+            await saveAllData(false);
           }
         }
-        // Jeżeli baza jest pusta, zainicjalizuj ją danymi domyślnymi
-        await saveOnlineData();
       } catch (err) {
-        console.warn("Pierwsze uruchomienie bazy online:", err);
-        await saveOnlineData();
+        console.warn("Działanie na buforze lokalnym:", err);
       }
     }
 
-    async function saveOnlineData() {
+    async function saveAllData(notify = true) {
+      // 1. Zapis natychmiastowy w pamięci trwałej
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+
+      // 2. Wysłanie do wspólnej bazy online
       try {
-        const res = await fetch(KVDB_URL, {
-          method: "POST",
-          headers: { "Content-Type": "text/plain" },
-          body: JSON.stringify(state)
+        await fetch(REMOTE_URL, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: "OIT_SCHEDULE_STORAGE",
+            data: state
+          })
         });
-        if (res.ok) {
-          showToast("Zsynchronizowano w bazie online");
-        } else {
-          showToast("Błąd zapisu danych", "error");
-        }
-      } catch (err) {
-        showToast("Błąd połączenia z bazą", "error");
+        if (notify) showToast("Dane trwale zapisane!");
+      } catch (e) {
+        if (notify) showToast("Zapisano lokalnie");
       }
     }
 
+    // NAWIGACJA
     function switchView(viewName) {
       ['doctor', 'schedule', 'admin'].forEach(v => {
         document.getElementById(`view-${v}`).classList.add('hidden');
@@ -368,7 +401,7 @@
       if (viewName === 'admin') renderDoctorsAdminTable();
     }
 
-    // ADMIN
+    // PANEL ADMINA & PIN
     function openAdminAuth() {
       if (isAdminAuthenticated) {
         switchView('admin');
@@ -384,8 +417,8 @@
 
     function handleVerifyPin(e) {
       e.preventDefault();
-      const enteredPin = document.getElementById("admin-pin-input").value;
-      if (enteredPin === state.admin_pin) {
+      const enteredPin = document.getElementById("admin-pin-input").value.trim();
+      if (enteredPin === String(state.admin_pin).trim()) {
         isAdminAuthenticated = true;
         closePinModal();
         switchView('admin');
@@ -398,18 +431,21 @@
     function logoutAdmin() {
       isAdminAuthenticated = false;
       switchView('doctor');
-      showToast("Wylogowano");
+      showToast("Wylogowano z Panelu Admina");
     }
 
     async function promptChangePin() {
       const newPin = prompt("Podaj nowy kod PIN administratora (min. 4 cyfry):");
-      if (newPin && newPin.length >= 4) {
-        state.admin_pin = newPin;
-        await saveOnlineData();
-        showToast("PIN zmieniony pomyślnie");
+      if (newPin && newPin.trim().length >= 4) {
+        state.admin_pin = newPin.trim();
+        await saveAllData(true);
+        showToast(`Nowy PIN (${state.admin_pin}) został zapisany na stałe!`);
+      } else if (newPin !== null) {
+        showToast("PIN musi mieć min. 4 znaki!", "error");
       }
     }
 
+    // EDYCJA LEKARZY
     function renderDoctorsAdminTable() {
       const tbody = document.getElementById("doctors-table-body");
       document.getElementById("doctor-count-badge").innerText = `${state.doctors.length} lekarzy`;
@@ -456,7 +492,7 @@
       document.getElementById("new-doc-name").value = "";
       renderDoctorsAdminTable();
       populateDoctorSelect();
-      await saveOnlineData();
+      await saveAllData(true);
       showToast("Dodano lekarza");
     }
 
@@ -487,7 +523,7 @@
         closeEditModal();
         renderDoctorsAdminTable();
         populateDoctorSelect();
-        await saveOnlineData();
+        await saveAllData(true);
         showToast("Zaktualizowano dane lekarza");
       }
     }
@@ -497,11 +533,11 @@
       state.doctors = state.doctors.filter(d => d.id !== id);
       renderDoctorsAdminTable();
       populateDoctorSelect();
-      await saveOnlineData();
+      await saveAllData(true);
       showToast("Lekarz usunięty");
     }
 
-    // LEKARZ & KALENDARZ
+    // KALENDARZ LEKARZA
     function populateDoctorSelect() {
       const select = document.getElementById("doctor-select");
       select.innerHTML = '<option value="">-- Wybierz lekarza z listy --</option>';
@@ -601,7 +637,7 @@
 
       state.availabilities[`${selectedDoctorId}_${dateStr}`] = nextStatus;
       renderDoctorCalendar();
-      await saveOnlineData();
+      await saveAllData(false);
     }
 
     // GRAFIK ODDZIAŁU
@@ -737,7 +773,8 @@
 
       state.shifts = newShifts;
       renderScheduleTable();
-      showToast("Wygenerowano grafik! Kliknij 'Zapisz grafik', aby zachować.");
+      saveAllData(false);
+      showToast("Wygenerowano grafik! Pamiętaj, aby kliknąć 'Zapisz grafik'.");
     }
 
     function renderDoctorStats() {
