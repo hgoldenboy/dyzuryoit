@@ -79,8 +79,8 @@
       <div class="bg-blue-50 border-l-4 border-blue-600 p-4 rounded-r-lg text-sm text-blue-900 flex items-start space-x-3">
         <i class="fa-solid fa-info-circle text-blue-600 text-lg mt-0.5"></i>
         <div>
-          <p class="font-semibold">Klikaj w kafelki kalendarza, aby zmienić dyspozycyjność.</p>
-          <p class="text-xs text-blue-700 mt-0.5">Zmiany zapisują się automatycznie we wspólnej bazie online.</p>
+          <p class="font-semibold">Klikaj w kafelki dni, aby zmienić dyspozycyjność.</p>
+          <p class="text-xs text-blue-700 mt-0.5">Wszystkie zmiany automatycznie zapisują się w chmurze.</p>
         </div>
       </div>
 
@@ -265,7 +265,8 @@
   </div>
 
   <script>
-    const NPOINT_URL = "https://api.npoint.io/f8d77a670df72c7d0306";
+    // BEZPOŚREDNIA BAZA KVDB - ZERO LOGOWANIA I KONT
+    const KVDB_URL = "https://kvdb.io/4yKqP3Xb1T9s8uL7mR2vE6/oit_dyzury_med_2026_xyz";
 
     let state = {
       admin_pin: "1234",
@@ -310,7 +311,7 @@
 
     async function fetchOnlineData() {
       try {
-        const res = await fetch(NPOINT_URL, { cache: "no-store" });
+        const res = await fetch(KVDB_URL, { cache: "no-store" });
         if (res.ok) {
           const remoteData = await res.json();
           if (remoteData && typeof remoteData === 'object') {
@@ -320,25 +321,32 @@
             }
             state.availabilities = remoteData.availabilities || {};
             state.shifts = remoteData.shifts || {};
+            
+            populateDoctorSelect();
+            renderDoctorCalendar();
+            renderDoctorsAdminTable();
+            return;
           }
         }
+        // Jeżeli baza jest pusta, zainicjalizuj ją danymi domyślnymi
+        await saveOnlineData();
       } catch (err) {
-        showToast("Nie udało się pobrać danych z bazy online", "error");
+        console.warn("Pierwsze uruchomienie bazy online:", err);
+        await saveOnlineData();
       }
     }
 
     async function saveOnlineData() {
       try {
-        // npoint.io oczekuje POST z czystym tekstem (text/plain) by ominąć preflight CORS w przeglądarce
-        const res = await fetch(NPOINT_URL, {
+        const res = await fetch(KVDB_URL, {
           method: "POST",
-          headers: { "Content-Type": "text/plain;charset=UTF-8" },
+          headers: { "Content-Type": "text/plain" },
           body: JSON.stringify(state)
         });
         if (res.ok) {
-          showToast("Zsynchronizowano dane w bazie online");
+          showToast("Zsynchronizowano w bazie online");
         } else {
-          showToast("Błąd zapisu w chmurze", "error");
+          showToast("Błąd zapisu danych", "error");
         }
       } catch (err) {
         showToast("Błąd połączenia z bazą", "error");
