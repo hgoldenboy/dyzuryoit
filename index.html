@@ -4,170 +4,230 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dyżury OIT - WSM Poznań</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
-  <!-- Supabase -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#f0f7ff',
+              100: '#e0effe',
+              500: '#0284c7',
+              600: '#0369a1',
+              700: '#075985',
+              900: '#082f49'
+            }
+          }
+        }
+      }
+    }
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  
-  <!-- Silnik bezpośredniego generowania PDF do pliku -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-</head>
-<body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col">
 
-  <!-- ==================== HEADER ==================== -->
-  <header class="bg-blue-900 text-white shadow-md sticky top-0 z-40">
-    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-4">
-      <div class="flex items-center space-x-3">
-        <i class="fa-solid fa-hospital-user text-2xl text-blue-300"></i>
-        <div>
-          <h1 class="font-bold text-lg leading-tight">OIT Grafik Dyżurów</h1>
-          <p class="text-xs text-blue-200">Wielospecjalistyczny Szpital Miejski im. J. Strusia w Poznaniu</p>
+  <style>
+    body { font-feature-settings: "cv02", "cv03", "cv04", "cv11"; }
+    
+    /* Precyzyjny profil wydruku mieszczący 1 stronę A4 bez nagłówków przeglądarki */
+    @page {
+      size: A4 portrait;
+      margin: 8mm 7mm 6mm 7mm;
+    }
+    @media print {
+      .no-print, #toast { display: none !important; }
+      body { background: white !important; color: black !important; font-size: 8.5pt !important; padding: 0 !important; margin: 0 !important; }
+      table { width: 100% !important; border-collapse: collapse !important; }
+      th, td { border: 1px solid #334155 !important; padding: 2.2px 4px !important; color: black !important; }
+      th { background-color: #f1f5f9 !important; font-weight: 700 !important; }
+      .print-dayoff { background-color: #f1f5f9 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col font-sans">
+
+  <!-- ==================== GÓRNY PASEK ==================== -->
+  <header class="bg-white/95 backdrop-blur-md border-b border-slate-200 sticky top-0 z-30 shadow-xs no-print">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap justify-between items-center gap-4">
+      
+      <div>
+        <div class="flex items-center space-x-2">
+          <h1 class="font-extrabold text-base text-slate-900 tracking-tight leading-tight">Oddział Anestezjologii i Intensywnej Terapii</h1>
+          <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-brand-50 text-brand-700 border border-brand-100 uppercase tracking-wider">OIT</span>
         </div>
+        <p class="text-xs text-slate-500 font-medium">Wielospecjalistyczny Szpital Miejski im. J. Strusia w Poznaniu</p>
       </div>
       
       <div class="flex items-center space-x-2">
-        <span id="auth-status-badge" class="text-xs px-2.5 py-1 rounded-full bg-blue-950 text-blue-300 border border-blue-800 flex items-center">
-          <i class="fa-solid fa-user mr-1.5"></i> Tryb Lekarza (Odczyt)
+        <span id="auth-status-badge" class="hidden sm:inline-flex items-center px-3 py-1.5 rounded-xl bg-slate-100 text-slate-600 text-xs font-semibold border border-slate-200">
+          <span class="w-2 h-2 rounded-full bg-slate-400 mr-2"></span>
+          <span>Tryb Lekarza (Odczyt)</span>
         </span>
-        <nav class="flex space-x-1 bg-blue-950 p-1 rounded-lg text-sm">
-          <button id="nav-doctor" onclick="switchView('doctor')" class="px-3 py-1.5 rounded-md font-medium bg-blue-600 text-white transition">
-            <i class="fa-regular fa-calendar-check mr-1"></i> Moja Dyspozycja
+
+        <nav class="flex p-1 bg-slate-100 rounded-2xl border border-slate-200 text-xs font-semibold">
+          <button id="nav-doctor" onclick="switchView('doctor')" class="px-3.5 py-1.5 rounded-xl bg-white text-slate-900 shadow-xs font-bold transition flex items-center space-x-1.5">
+            <i class="fa-regular fa-calendar-check text-brand-600"></i>
+            <span>Dyspozycja</span>
           </button>
-          <button id="nav-schedule" onclick="switchView('schedule')" class="px-3 py-1.5 rounded-md font-medium text-blue-200 hover:text-white transition">
-            <i class="fa-solid fa-calendar-days mr-1"></i> Grafik Oddziału
+          <button id="nav-schedule" onclick="switchView('schedule')" class="px-3.5 py-1.5 rounded-xl text-slate-600 hover:text-slate-900 transition flex items-center space-x-1.5">
+            <i class="fa-solid fa-calendar-days"></i>
+            <span>Grafik Oddziału</span>
           </button>
-          <button id="nav-admin" onclick="openAdminAuth()" class="px-3 py-1.5 rounded-md font-medium text-blue-200 hover:text-white transition">
-            <i class="fa-solid fa-lock mr-1"></i> Koordynator
+          <button id="nav-admin" onclick="openAdminAuth()" class="px-3.5 py-1.5 rounded-xl text-slate-600 hover:text-slate-900 transition flex items-center space-x-1.5">
+            <i class="fa-solid fa-user-shield text-slate-400"></i>
+            <span>Koordynator</span>
           </button>
         </nav>
       </div>
+
     </div>
   </header>
 
-  <!-- TOAST -->
-  <div id="toast" class="fixed bottom-5 right-5 z-50 transform transition-all duration-300 translate-y-20 opacity-0 pointer-events-none bg-slate-900 text-white px-4 py-3 rounded-lg shadow-xl flex items-center space-x-3">
-    <i id="toast-icon" class="fa-solid fa-circle-check text-emerald-400"></i>
-    <span id="toast-msg" class="text-sm">Komunikat</span>
+  <!-- ==================== CZYSTY NAGŁÓWEK DOKUMENTU NA 1 STRONĘ A4 ==================== -->
+  <div class="hidden print:block mb-1.5 border-b-2 border-slate-900 pb-1 bg-white text-slate-900">
+    <div class="flex justify-between items-end">
+      <div>
+        <h2 class="text-[10pt] font-extrabold uppercase tracking-tight">Wielospecjalistyczny Szpital Miejski im. Józefa Strusia w Poznaniu</h2>
+        <p class="text-[8pt] font-semibold text-slate-700">Oddział Anestezjologii i Intensywnej Terapii</p>
+      </div>
+      <div class="text-right">
+        <h3 id="print-month-title" class="text-[10pt] font-black uppercase text-slate-900">Obsada Dyżurowa</h3>
+      </div>
+    </div>
   </div>
 
-  <main class="max-w-7xl mx-auto px-4 py-6 flex-grow w-full">
+  <!-- TOAST ALERT -->
+  <div id="toast" class="fixed bottom-6 right-6 z-50 transform transition-all duration-300 translate-y-16 opacity-0 pointer-events-none bg-slate-900 text-white px-4 py-3 rounded-2xl shadow-xl flex items-center space-x-3 border border-slate-700 text-xs font-medium no-print">
+    <i id="toast-icon" class="fa-solid fa-circle-check text-emerald-400 text-base"></i>
+    <span id="toast-msg">Komunikat</span>
+  </div>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 flex-grow w-full space-y-6">
 
     <!-- ==================== WIDOK 1: DYSPOZYCJA ==================== -->
-    <section id="view-doctor" class="space-y-6">
-      <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-wrap justify-between items-center gap-4">
+    <section id="view-doctor" class="space-y-5">
+      
+      <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-wrap justify-between items-center gap-4">
         
         <div class="flex flex-wrap items-end gap-3 w-full md:w-auto">
           <div class="w-full sm:w-64">
-            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Lekarz</label>
-            <select id="doctor-select" onchange="handleDoctorChange()" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-800 font-semibold focus:ring-2 focus:ring-blue-500 outline-none">
-              <option value="">-- Wybierz nazwisko z listy --</option>
+            <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 flex items-center space-x-1.5">
+              <i class="fa-solid fa-user-doctor text-brand-600"></i>
+              <span>Twoje nazwisko</span>
+            </label>
+            <select id="doctor-select" onchange="handleDoctorChange()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-slate-800 text-xs font-semibold focus:ring-2 focus:ring-brand-500/20 focus:border-brand-600 outline-none transition cursor-pointer">
+              <option value="">Wybierz lekarza z listy...</option>
             </select>
           </div>
 
           <div class="flex items-center space-x-2">
             <div class="w-24">
-              <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Min dyż.</label>
-              <input type="number" id="doctor-min-shifts" min="0" max="15" value="5" onchange="handleTargetShiftsChange()" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-2 text-slate-800 font-semibold focus:ring-2 focus:ring-blue-500 outline-none">
+              <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Min dyż.</label>
+              <input type="number" id="doctor-min-shifts" min="0" max="15" value="5" onchange="handleTargetShiftsChange()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 text-xs font-semibold focus:ring-2 focus:ring-brand-500/20 focus:border-brand-600 outline-none transition">
             </div>
             <div class="w-24">
-              <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Max dyż.</label>
-              <input type="number" id="doctor-max-shifts" min="0" max="15" value="7" onchange="handleTargetShiftsChange()" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-2 text-slate-800 font-semibold focus:ring-2 focus:ring-blue-500 outline-none">
+              <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Max dyż.</label>
+              <input type="number" id="doctor-max-shifts" min="0" max="15" value="7" onchange="handleTargetShiftsChange()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 text-xs font-semibold focus:ring-2 focus:ring-brand-500/20 focus:border-brand-600 outline-none transition">
             </div>
           </div>
         </div>
 
-        <div class="flex items-center space-x-2">
-          <button onclick="changeMonth(-1)" class="p-2 border rounded-lg hover:bg-slate-50 text-slate-600"><i class="fa-solid fa-chevron-left"></i></button>
-          <span id="calendar-month-label" class="font-bold text-base px-3 text-slate-700 min-w-[140px] text-center">Miesiąc</span>
-          <button onclick="changeMonth(1)" class="p-2 border rounded-lg hover:bg-slate-50 text-slate-600"><i class="fa-solid fa-chevron-right"></i></button>
+        <div class="flex items-center bg-slate-50 p-1.5 rounded-2xl border border-slate-200">
+          <button onclick="changeMonth(-1)" class="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-white text-slate-600 hover:text-slate-900 transition"><i class="fa-solid fa-chevron-left text-xs"></i></button>
+          <span id="calendar-month-label" class="font-extrabold text-xs px-4 text-slate-800 min-w-[140px] text-center">Miesiąc</span>
+          <button onclick="changeMonth(1)" class="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-white text-slate-600 hover:text-slate-900 transition"><i class="fa-solid fa-chevron-right text-xs"></i></button>
         </div>
 
-        <div class="flex flex-wrap gap-2 text-xs">
-          <span class="inline-flex items-center px-2.5 py-1 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
-            <span class="w-2 h-2 rounded-full bg-emerald-500 mr-1.5"></span> Chcę (preferowany)
+        <div class="flex flex-wrap gap-2 text-xs font-semibold">
+          <span class="inline-flex items-center px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200/60 shadow-2xs">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 mr-2"></span> Chcę (preferowany)
           </span>
-          <span class="inline-flex items-center px-2.5 py-1 rounded bg-blue-50 text-blue-700 border border-blue-200">
-            <span class="w-2 h-2 rounded-full bg-blue-500 mr-1.5"></span> Mogę (dostępny)
+          <span class="inline-flex items-center px-3 py-1.5 rounded-xl bg-sky-50 text-sky-800 border border-sky-200/60 shadow-2xs">
+            <span class="w-2 h-2 rounded-full bg-sky-500 mr-2"></span> Mogę (dostępny)
           </span>
-          <span class="inline-flex items-center px-2.5 py-1 rounded bg-rose-50 text-rose-700 border border-rose-200">
-            <span class="w-2 h-2 rounded-full bg-rose-500 mr-1.5"></span> Nie mogę
+          <span class="inline-flex items-center px-3 py-1.5 rounded-xl bg-rose-50 text-rose-800 border border-rose-200/60 shadow-2xs">
+            <span class="w-2 h-2 rounded-full bg-rose-500 mr-2"></span> Nie mogę
           </span>
         </div>
       </div>
 
-      <div class="bg-blue-50 border-l-4 border-blue-600 p-4 rounded-r-lg text-sm text-blue-900 flex items-start space-x-3">
-        <i class="fa-solid fa-info-circle text-blue-600 text-lg mt-0.5"></i>
-        <div>
-          <p class="font-semibold">Zadeklaruj przedział dyżurów (Min - Max) oraz kliknij dni w kalendarzu.</p>
-          <p class="text-xs text-blue-700 mt-0.5">Soboty, niedziele oraz święta państwowe są wyróżnione kolorem.</p>
+      <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
+        <div class="grid grid-cols-7 gap-2.5 mb-3 text-center text-[11px] font-bold uppercase tracking-wider">
+          <div class="text-slate-400">Pon</div>
+          <div class="text-slate-400">Wt</div>
+          <div class="text-slate-400">Śr</div>
+          <div class="text-slate-400">Czw</div>
+          <div class="text-slate-400">Pt</div>
+          <div class="text-indigo-600 font-extrabold">Sob</div>
+          <div class="text-rose-600 font-extrabold">Niedz</div>
         </div>
-      </div>
-
-      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-        <div class="grid grid-cols-7 gap-2 mb-2 text-center text-xs font-semibold text-slate-400 uppercase">
-          <div>Pon</div><div>Wt</div><div>Śr</div><div>Czw</div><div>Pt</div><div class="text-indigo-600 font-bold">Sob</div><div class="text-rose-600 font-bold">Niedz</div>
-        </div>
-        <div id="doctor-calendar-grid" class="grid grid-cols-7 gap-2"></div>
+        <div id="doctor-calendar-grid" class="grid grid-cols-7 gap-2.5"></div>
       </div>
     </section>
 
     <!-- ==================== WIDOK 2: GRAFIK ODDZIAŁU ==================== -->
-    <section id="view-schedule" class="space-y-6" style="display: none;">
-      <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-wrap justify-between items-center gap-4">
+    <section id="view-schedule" class="space-y-5" style="display: none;">
+      
+      <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-wrap justify-between items-center gap-4 no-print">
         
-        <!-- Wybór miesiąca w grafiku -->
         <div class="flex items-center space-x-3">
           <div>
-            <h2 class="text-lg font-bold text-slate-800">Harmonogram dyżurów lekarskich</h2>
-            <p class="text-xs text-slate-500">Miesięczny plan obsady OIT</p>
+            <h2 class="text-base font-extrabold text-slate-900 tracking-tight">Harmonogram dyżurów lekarskich</h2>
+            <p class="text-xs text-slate-500 font-medium">Miesięczny plan obsady OIT</p>
           </div>
-          <div class="flex items-center space-x-1 bg-slate-50 p-1 rounded-lg border border-slate-200 ml-2">
-            <button onclick="changeMonth(-1)" class="p-1.5 px-2.5 rounded hover:bg-slate-200 text-slate-600 text-xs"><i class="fa-solid fa-chevron-left"></i></button>
-            <span id="schedule-month-label" class="font-bold text-xs px-2 text-slate-700 min-w-[120px] text-center">Miesiąc</span>
-            <button onclick="changeMonth(1)" class="p-1.5 px-2.5 rounded hover:bg-slate-200 text-slate-600 text-xs"><i class="fa-solid fa-chevron-right"></i></button>
+          <div class="flex items-center bg-slate-50 p-1 rounded-2xl border border-slate-200 ml-2">
+            <button onclick="changeMonth(-1)" class="w-7 h-7 flex items-center justify-center rounded-xl hover:bg-white text-slate-600 text-xs"><i class="fa-solid fa-chevron-left"></i></button>
+            <span id="schedule-month-label" class="font-extrabold text-xs px-3 text-slate-800 min-w-[130px] text-center">Miesiąc</span>
+            <button onclick="changeMonth(1)" class="w-7 h-7 flex items-center justify-center rounded-xl hover:bg-white text-slate-600 text-xs"><i class="fa-solid fa-chevron-right"></i></button>
           </div>
         </div>
 
         <div class="flex flex-wrap items-center gap-2">
           <div id="coordinator-controls" style="display: none;" class="flex items-center space-x-2">
-            <button onclick="generateAutomaticSchedule()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-lg font-semibold text-xs flex items-center space-x-1.5 shadow-sm transition">
+            <button onclick="generateAutomaticSchedule()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-xl font-bold text-xs flex items-center space-x-1.5 shadow-xs transition">
               <i class="fa-solid fa-wand-magic-sparkles"></i>
               <span>Ułóż automatycznie</span>
             </button>
-            <button onclick="saveScheduleToSupabase(true)" class="bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-lg font-semibold text-xs flex items-center space-x-1.5 shadow-sm transition">
+            <button onclick="saveScheduleToSupabase(true)" class="bg-brand-600 hover:bg-brand-700 text-white px-3.5 py-2 rounded-xl font-bold text-xs flex items-center space-x-1.5 shadow-xs transition">
               <i class="fa-solid fa-floppy-disk"></i>
               <span>Zapisz grafik</span>
             </button>
           </div>
 
-          <button id="unlock-coord-btn" onclick="openAdminAuth()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 px-3 py-2 rounded-lg font-medium text-xs flex items-center space-x-1.5 transition">
-            <i class="fa-solid fa-lock"></i>
+          <button id="unlock-coord-btn" onclick="openAdminAuth()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 px-3.5 py-2 rounded-xl font-semibold text-xs flex items-center space-x-1.5 transition">
+            <i class="fa-solid fa-lock text-slate-400"></i>
             <span>Logowanie Koordynatora</span>
           </button>
 
-          <!-- Pobranie bezpośredniego pliku PDF na 1 stronę -->
-          <button onclick="exportScheduleToSinglePagePDF()" class="bg-slate-800 hover:bg-slate-900 text-white px-3.5 py-2 rounded-lg font-semibold text-xs transition flex items-center space-x-1.5 shadow-sm">
-            <i class="fa-solid fa-file-pdf text-rose-400"></i>
-            <span>Pobierz PDF (1 strona A4)</span>
+          <!-- Pobierz jako 1-stronicowy dokument PDF -->
+          <button onclick="triggerPrintOnePage()" class="bg-slate-900 hover:bg-slate-800 text-white px-3.5 py-2 rounded-xl font-bold text-xs flex items-center space-x-1.5 shadow-xs transition">
+            <i class="fa-solid fa-print"></i>
+            <span>Drukuj / Zapisz jako PDF (1 strona)</span>
           </button>
         </div>
       </div>
 
       <!-- TABELA GRAFIKU -->
-      <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden print:border-none print:shadow-none print:rounded-none">
         <div class="overflow-x-auto">
-          <table class="w-full text-left text-sm border-collapse">
+          <table class="w-full text-left text-xs border-collapse">
             <thead>
-              <tr class="bg-slate-100 text-slate-700 uppercase text-xs border-b border-slate-200">
-                <th class="p-2.5 w-24 text-center">Dzień</th>
-                <th class="p-2.5">Dyżurny 1 (Specjalista)</th>
-                <th class="p-2.5">Dyżurny 2</th>
-                <th class="p-2.5">Dyżurny 3</th>
-                <th class="p-2.5">Dyżurny 4</th>
-                <th class="p-2.5 w-32 text-center">Dyspozycyjność</th>
-                <th class="p-2.5 w-28 text-center">Status</th>
+              <tr class="bg-slate-100 text-slate-700 uppercase text-[10px] font-extrabold tracking-wider border-b border-slate-200">
+                <th class="p-3 w-28 text-center print:w-20">Dzień</th>
+                <th class="p-3 print:w-1/4">Dyżurny 1 (Specjalista)</th>
+                <th class="p-3 print:w-1/4">Dyżurny 2</th>
+                <th class="p-3 print:w-1/4">Dyżurny 3</th>
+                <th class="p-3 print:w-1/4">Dyżurny 4</th>
+                <th class="p-3 w-36 text-center no-print">Dyspozycyjność</th>
+                <th class="p-3 w-28 text-center no-print">Status</th>
               </tr>
             </thead>
             <tbody id="schedule-table-body" class="divide-y divide-slate-100"></tbody>
@@ -175,76 +235,92 @@
         </div>
       </div>
 
-      <!-- PODSUMOWANIE DLA KOORDYNATORA -->
-      <div id="coordinator-stats-panel" style="display: none;" class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+      <!-- PODSUMOWANIE DLA KOORDYNATORA (UKRYTE NA WYDRUKU) -->
+      <div id="coordinator-stats-panel" style="display: none;" class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs no-print">
         <div class="flex items-center justify-between mb-3 border-b border-slate-100 pb-2">
-          <h3 class="font-bold text-sm text-slate-800 uppercase tracking-wider">
+          <h3 class="font-extrabold text-xs text-slate-800 uppercase tracking-wider">
             Podsumowanie obsady (Widok Koordynatora)
           </h3>
-          <span class="text-xs text-slate-500">Dane deklaracji są niewidoczne dla personelu</span>
+          <span class="text-[11px] text-slate-500 font-medium">Deklaracje są niewidoczne dla personelu</span>
         </div>
         <div id="stats-container" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3"></div>
+      </div>
+
+      <!-- PODPISY DO WYDRUKU (DOPASOWANE DO 1 STRONY A4) -->
+      <div class="hidden print:flex justify-between items-end pt-3 mt-2 border-t border-slate-400">
+        <div class="text-center w-52">
+          <div class="border-b border-slate-400 pb-5"></div>
+          <p class="text-[7.5pt] font-bold text-slate-900 mt-1">Koordynator Dyżurów OIT</p>
+          <p class="text-[6.5pt] text-slate-500">(podpis)</p>
+        </div>
+        <div class="text-center w-52">
+          <div class="border-b border-slate-400 pb-5"></div>
+          <p class="text-[7.5pt] font-bold text-slate-900 mt-1">Kierownik Oddziału / Ordynator</p>
+          <p class="text-[6.5pt] text-slate-500">(podpis i pieczęć)</p>
+        </div>
       </div>
     </section>
 
     <!-- ==================== WIDOK 3: PANEL KOORDYNATORA ==================== -->
     <section id="view-admin" class="space-y-6" style="display: none;">
-      <div class="bg-slate-900 text-white p-5 rounded-xl shadow-sm flex flex-wrap justify-between items-center gap-4">
+      <div class="bg-slate-900 text-white p-5 rounded-2xl shadow-md flex flex-wrap justify-between items-center gap-4 border border-slate-800">
         <div>
-          <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-emerald-500/20 text-emerald-300 mb-1">
-            <i class="fa-solid fa-shield-halved mr-1"></i> Sesja Koordynatora Aktywna
+          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 mb-1.5">
+            <i class="fa-solid fa-shield-halved mr-1.5"></i> Sesja Koordynatora Aktywna
           </span>
-          <h2 class="text-xl font-bold">Zarządzanie Personelem Lekarskim</h2>
+          <h2 class="text-lg font-black tracking-tight">Zarządzanie Personelem Lekarskim</h2>
         </div>
         <div class="flex items-center space-x-2">
-          <button onclick="promptChangePin()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-700 transition">
-            <i class="fa-solid fa-key mr-1"></i> Zmień PIN
+          <button onclick="promptChangePin()" class="bg-white/10 hover:bg-white/20 text-white px-3.5 py-2 rounded-xl text-xs font-semibold backdrop-blur-sm transition border border-white/10">
+            <i class="fa-solid fa-key mr-1.5"></i> Zmień PIN
           </button>
-          <button onclick="logoutAdmin()" class="bg-rose-900/40 hover:bg-rose-800/60 text-rose-200 px-3 py-1.5 rounded-lg text-xs font-medium border border-rose-800 transition">
-            <i class="fa-solid fa-arrow-right-from-bracket mr-1"></i> Zablokuj panel
+          <button onclick="logoutAdmin()" class="bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border border-rose-500/30 px-3.5 py-2 rounded-xl text-xs font-semibold transition">
+            <i class="fa-solid fa-arrow-right-from-bracket mr-1.5"></i> Zablokuj panel
           </button>
         </div>
       </div>
 
-      <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
-        <h3 class="text-base font-bold text-slate-800 mb-3 flex items-center">
-          <i class="fa-solid fa-user-plus text-blue-600 mr-2"></i> Dodaj nowego lekarza do bazy
+      <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
+        <h3 class="text-sm font-extrabold text-slate-900 mb-3 flex items-center space-x-2">
+          <i class="fa-solid fa-user-plus text-brand-600"></i>
+          <span>Wprowadź nowego lekarza do bazy</span>
         </h3>
         <form id="add-doctor-form" onsubmit="handleAddDoctor(event)" class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
           <div class="sm:col-span-7">
-            <label class="block text-xs font-semibold text-slate-600 mb-1">Tytuł, Imię i Nazwisko</label>
-            <input type="text" id="new-doc-name" required placeholder="np. lek. Jan Kowalski" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+            <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Tytuł, Imię i Nazwisko</label>
+            <input type="text" id="new-doc-name" required placeholder="np. lek. Jan Kowalski" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-semibold focus:bg-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-600 outline-none transition">
           </div>
           <div class="sm:col-span-3">
-            <label class="block text-xs font-semibold text-slate-600 mb-1">Kwalifikacja</label>
-            <select id="new-doc-role" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+            <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Kwalifikacja</label>
+            <select id="new-doc-role" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:bg-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-600 outline-none transition">
               <option value="specialist">Specjalista</option>
               <option value="resident">Rezydent</option>
             </select>
           </div>
           <div class="sm:col-span-2">
-            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg text-sm transition">
-              <i class="fa-solid fa-plus mr-1"></i> Dodaj
+            <button type="submit" class="w-full bg-brand-600 hover:bg-brand-700 active:scale-95 text-white font-bold py-2 px-4 rounded-xl text-xs shadow-xs transition flex items-center justify-center space-x-1.5">
+              <i class="fa-solid fa-plus"></i>
+              <span>Dodaj</span>
             </button>
           </div>
         </form>
       </div>
 
-      <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
         <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
           <div>
-            <h3 class="font-bold text-slate-800">Personel lekarski oddziału</h3>
-            <p class="text-xs text-slate-500">Zarządzaj kwalifikacjami (Specjalista / Rezydent).</p>
+            <h3 class="font-extrabold text-xs text-slate-800 uppercase tracking-wider">Kadra lekarska OIT</h3>
+            <p class="text-[11px] text-slate-500">Zarządzaj kwalifikacjami (Specjalista / Rezydent).</p>
           </div>
-          <span id="doctor-count-badge" class="bg-blue-100 text-blue-800 text-xs px-3 py-1 rounded-full font-bold">0 lekarzy</span>
+          <span id="doctor-count-badge" class="bg-brand-50 text-brand-700 text-xs px-3 py-1 rounded-full font-bold border border-brand-100">0 lekarzy</span>
         </div>
         <div class="overflow-x-auto">
-          <table class="w-full text-left text-sm">
-            <thead class="bg-slate-100 text-slate-600 text-xs uppercase">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-100/70 text-slate-600 text-[10px] uppercase font-bold tracking-wider">
               <tr>
-                <th class="p-3">Lekarz</th>
-                <th class="p-3">Kwalifikacja</th>
-                <th class="p-3 text-right">Akcje</th>
+                <th class="p-3.5">Lekarz</th>
+                <th class="p-3.5">Kwalifikacja</th>
+                <th class="p-3.5 text-right">Akcje</th>
               </tr>
             </thead>
             <tbody id="doctors-table-body" class="divide-y divide-slate-100"></tbody>
@@ -256,61 +332,62 @@
   </main>
 
   <!-- MODAL: KTO JEST DOSTĘPNY -->
-  <div id="modal-avail-details" style="display: none;" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-5">
-      <div class="flex justify-between items-center mb-3 pb-2 border-b">
-        <h3 id="modal-avail-date-title" class="font-bold text-slate-800 text-sm">Dyspozycyjność lekarzy</h3>
-        <button onclick="closeAvailModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+  <div id="modal-avail-details" style="display: none;" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 border border-slate-100">
+      <div class="flex justify-between items-center mb-3 pb-2 border-b border-slate-100">
+        <h3 id="modal-avail-date-title" class="font-extrabold text-sm text-slate-900">Dyspozycyjność lekarzy</h3>
+        <button onclick="closeAvailModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 transition"><i class="fa-solid fa-xmark text-xs"></i></button>
       </div>
       <div id="modal-avail-list" class="space-y-2 max-h-80 overflow-y-auto text-xs"></div>
-      <button type="button" onclick="closeAvailModal()" class="w-full mt-4 py-2 border rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-50">Zamknij</button>
+      <button type="button" onclick="closeAvailModal()" class="w-full mt-4 py-2.5 bg-slate-100 hover:bg-slate-200 rounded-xl text-xs font-bold text-slate-700 transition">Zamknij</button>
     </div>
   </div>
 
   <!-- MODAL: EDYCJA LEKARZA -->
-  <div id="modal-edit-doctor" style="display: none;" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
-      <div class="flex justify-between items-center mb-4">
-        <h3 class="font-bold text-slate-800 text-base flex items-center">
-          <i class="fa-solid fa-user-pen text-blue-600 mr-2"></i> Edycja lekarza
+  <div id="modal-edit-doctor" style="display: none;" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 border border-slate-100">
+      <div class="flex justify-between items-center mb-4 pb-2 border-b border-slate-100">
+        <h3 class="font-extrabold text-sm text-slate-900 flex items-center space-x-2">
+          <i class="fa-solid fa-user-pen text-brand-600"></i>
+          <span>Edycja danych lekarza</span>
         </h3>
-        <button onclick="closeEditModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+        <button onclick="closeEditModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 transition"><i class="fa-solid fa-xmark text-xs"></i></button>
       </div>
-      <form id="edit-doctor-form" onsubmit="handleSaveEditDoctor(event)" class="space-y-4">
+      <form id="edit-doctor-form" onsubmit="handleSaveEditDoctor(event)" class="space-y-3.5">
         <input type="hidden" id="edit-doc-id">
         <div>
-          <label class="block text-xs font-semibold text-slate-600 mb-1">Tytuł, Imię i Nazwisko</label>
-          <input type="text" id="edit-doc-name" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+          <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Tytuł, Imię i Nazwisko</label>
+          <input type="text" id="edit-doc-name" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-semibold focus:bg-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-600 outline-none transition">
         </div>
         <div>
-          <label class="block text-xs font-semibold text-slate-600 mb-1">Kwalifikacja</label>
-          <select id="edit-doc-role" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+          <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Kwalifikacja</label>
+          <select id="edit-doc-role" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:bg-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-600 outline-none transition">
             <option value="specialist">Specjalista</option>
             <option value="resident">Rezydent</option>
           </select>
         </div>
         <div class="flex justify-end space-x-2 pt-2">
-          <button type="button" onclick="closeEditModal()" class="px-4 py-2 border rounded-lg text-sm text-slate-600 hover:bg-slate-50 font-medium">Anuluj</button>
-          <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition">Zapisz</button>
+          <button type="button" onclick="closeEditModal()" class="px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 transition">Anuluj</button>
+          <button type="submit" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 active:scale-95 text-white rounded-xl text-xs font-bold transition shadow-xs">Zapisz</button>
         </div>
       </form>
     </div>
   </div>
 
   <!-- MODAL: PIN KOORDYNATORA -->
-  <div id="modal-pin-auth" style="display: none;" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6 text-center">
-      <div class="w-12 h-12 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center mx-auto mb-3">
-        <i class="fa-solid fa-lock text-xl"></i>
+  <div id="modal-pin-auth" style="display: none;" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-6 text-center border border-slate-100">
+      <div class="w-12 h-12 bg-brand-50 text-brand-600 rounded-2xl flex items-center justify-center mx-auto mb-3">
+        <i class="fa-solid fa-lock text-lg"></i>
       </div>
-      <h3 class="font-bold text-slate-800 text-lg mb-1">Panel Koordynatora</h3>
+      <h3 class="font-extrabold text-slate-900 text-base mb-1">Panel Koordynatora</h3>
       <p class="text-xs text-slate-500 mb-4">Wpisz kod PIN (Domyślny: 1234)</p>
       
       <form onsubmit="handleVerifyPin(event)" class="space-y-4">
-        <input type="password" id="admin-pin-input" maxlength="8" placeholder="••••" autofocus required class="text-center tracking-widest text-2xl font-bold w-full border border-slate-300 rounded-lg py-2 focus:ring-2 focus:ring-blue-500 outline-none">
+        <input type="password" id="admin-pin-input" maxlength="8" placeholder="••••" autofocus required class="text-center tracking-widest text-2xl font-black w-full bg-slate-50 border border-slate-200 rounded-2xl py-2.5 focus:bg-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-600 outline-none transition">
         <div class="flex space-x-2">
-          <button type="button" onclick="closePinModal()" class="w-1/2 py-2 border rounded-lg text-sm text-slate-600 hover:bg-slate-50 font-medium">Anuluj</button>
-          <button type="submit" class="w-1/2 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition">Odblokuj</button>
+          <button type="button" onclick="closePinModal()" class="w-1/2 py-2.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 transition">Anuluj</button>
+          <button type="submit" class="w-1/2 py-2.5 bg-brand-600 hover:bg-brand-700 active:scale-95 text-white rounded-xl text-xs font-bold transition shadow-xs">Odblokuj</button>
         </div>
       </form>
     </div>
@@ -355,15 +432,7 @@
 
     function isPolishPublicHoliday(year, month, day) {
       const fixedHolidays = [
-        "0-1",   // Nowy Rok
-        "0-6",   // Trzech Króli
-        "4-1",   // 1 Maja
-        "4-3",   // 3 Maja
-        "7-15",  // 15 Sierpnia
-        "10-1",  // 1 Listopada
-        "10-11", // 11 Listopada
-        "11-25", // 25 Grudnia
-        "11-26"  // 26 Grudnia
+        "0-1", "0-6", "4-1", "4-3", "7-15", "10-1", "10-11", "11-25", "11-26"
       ];
       if (fixedHolidays.includes(`${month}-${day}`)) return true;
 
@@ -390,11 +459,11 @@
       const icon = document.getElementById("toast-icon");
       
       msg.textContent = message;
-      icon.className = type === "error" ? "fa-solid fa-circle-exclamation text-rose-400" : "fa-solid fa-circle-check text-emerald-400";
+      icon.className = type === "error" ? "fa-solid fa-circle-exclamation text-rose-400 text-base" : "fa-solid fa-circle-check text-emerald-400 text-base";
       
-      toast.classList.remove("translate-y-20", "opacity-0");
+      toast.classList.remove("translate-y-16", "opacity-0");
       setTimeout(() => {
-        toast.classList.add("translate-y-20", "opacity-0");
+        toast.classList.add("translate-y-16", "opacity-0");
       }, 2500);
     }
 
@@ -462,14 +531,14 @@
         const sec = document.getElementById(`view-${v}`);
         if (sec) sec.style.display = 'none';
         const btn = document.getElementById(`nav-${v}`);
-        if (btn) btn.className = "px-3 py-1.5 rounded-md font-medium text-blue-200 hover:text-white transition";
+        if (btn) btn.className = "px-3.5 py-1.5 rounded-xl text-slate-600 hover:text-slate-900 transition flex items-center space-x-1.5";
       });
 
       const activeSec = document.getElementById(`view-${viewName}`);
       if (activeSec) activeSec.style.display = 'block';
 
       const activeBtn = document.getElementById(`nav-${viewName}`);
-      if (activeBtn) activeBtn.className = "px-3 py-1.5 rounded-md font-medium bg-blue-600 text-white transition";
+      if (activeBtn) activeBtn.className = "px-3.5 py-1.5 rounded-xl bg-white text-slate-900 shadow-xs font-bold transition flex items-center space-x-1.5";
 
       if (viewName === 'schedule') renderScheduleTable();
       if (viewName === 'admin') renderDoctorsAdminTable();
@@ -516,14 +585,14 @@
       const statsPanel = document.getElementById("coordinator-stats-panel");
 
       if (isCoordinator) {
-        badge.className = "text-xs px-2.5 py-1 rounded-full bg-emerald-500 text-white font-semibold flex items-center";
-        badge.innerHTML = `<i class="fa-solid fa-shield-halved mr-1.5"></i> Koordynator (Edycja aktywna)`;
+        badge.className = "hidden sm:inline-flex items-center px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold shadow-2xs";
+        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 mr-2"></span><span>Koordynator (Edycja)</span>`;
         if (coordControls) coordControls.style.display = 'flex';
         if (unlockBtn) unlockBtn.style.display = 'none';
         if (statsPanel) statsPanel.style.display = 'block';
       } else {
-        badge.className = "text-xs px-2.5 py-1 rounded-full bg-blue-950 text-blue-300 border border-blue-800 flex items-center";
-        badge.innerHTML = `<i class="fa-solid fa-user mr-1.5"></i> Tryb Lekarza (Odczyt)`;
+        badge.className = "hidden sm:inline-flex items-center px-3 py-1.5 rounded-xl bg-slate-100 text-slate-600 text-xs font-semibold border border-slate-200";
+        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-slate-400 mr-2"></span><span>Tryb Lekarza (Odczyt)</span>`;
         if (coordControls) coordControls.style.display = 'none';
         if (unlockBtn) unlockBtn.style.display = 'inline-flex';
         if (statsPanel) statsPanel.style.display = 'none';
@@ -543,7 +612,7 @@
 
     function populateDoctorSelect() {
       const select = document.getElementById("doctor-select");
-      select.innerHTML = '<option value="">-- Wybierz nazwisko z listy --</option>';
+      select.innerHTML = '<option value="">Wybierz lekarza z listy...</option>';
       state.doctors.forEach(doc => {
         const opt = document.createElement("option");
         opt.value = doc.id;
@@ -590,7 +659,7 @@
         max_shifts: maxVal
       }, { onConflict: 'doctor_id,month' });
 
-      showToast(`Zapisano preferencję: ${minVal} - ${maxVal} dyżurów`);
+      showToast(`Zapisano cel: ${minVal} - ${maxVal} dyżurów`);
       if (isCoordinator) renderDoctorStats();
     }
 
@@ -614,6 +683,7 @@
       document.getElementById("calendar-month-label").innerText = label;
       const schedLabel = document.getElementById("schedule-month-label");
       if (schedLabel) schedLabel.innerText = label;
+      document.getElementById("print-month-title").innerText = `Obsada Dyżurowa: ${label}`;
     }
 
     function getDaysInCurrentMonth() {
@@ -631,7 +701,7 @@
 
       for (let i = 0; i < firstDayIndex; i++) {
         const empty = document.createElement("div");
-        empty.className = "h-24 bg-slate-50 border border-slate-100 rounded-lg opacity-40";
+        empty.className = "h-24 bg-slate-50 border border-slate-100 rounded-2xl opacity-40";
         grid.appendChild(empty);
       }
 
@@ -645,32 +715,32 @@
         const card = document.createElement("div");
         const status = (selectedDoctorId && state.availabilities[`${selectedDoctorId}_${dateStr}`]) || 'none';
 
-        let bgClass = isDayOff ? "bg-indigo-50/50 border-indigo-200 hover:border-indigo-400" : "bg-white border-slate-200 hover:border-slate-400";
-        let statusBadge = `<span class="text-xs text-slate-400 italic">Brak wpisu</span>`;
+        let bgClass = isDayOff ? "bg-indigo-50/60 border-indigo-200 hover:border-indigo-300" : "bg-white border-slate-200 hover:border-slate-300";
+        let statusBadge = `<span class="text-[11px] text-slate-400 font-medium">Brak wpisu</span>`;
 
         if (status === 'preferred') {
-          bgClass = "bg-emerald-50 border-emerald-400 text-emerald-900";
-          statusBadge = `<span class="text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">Chcę</span>`;
+          bgClass = "bg-emerald-50 border-emerald-300 text-emerald-900";
+          statusBadge = `<span class="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md">Chcę</span>`;
         } else if (status === 'available') {
-          bgClass = "bg-blue-50 border-blue-400 text-blue-900";
-          statusBadge = `<span class="text-xs font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded">Mogę</span>`;
+          bgClass = "bg-sky-50 border-sky-300 text-sky-900";
+          statusBadge = `<span class="text-[10px] font-bold text-sky-800 bg-sky-100 px-2 py-0.5 rounded-md">Mogę</span>`;
         } else if (status === 'unavailable') {
           bgClass = "bg-rose-50 border-rose-300 text-rose-900";
-          statusBadge = `<span class="text-xs font-bold text-rose-700 bg-rose-100 px-2 py-0.5 rounded">Nie mogę</span>`;
+          statusBadge = `<span class="text-[10px] font-bold text-rose-800 bg-rose-100 px-2 py-0.5 rounded-md">Nie mogę</span>`;
         }
 
         let dayBadgeText = "";
         if (isHoliday) dayBadgeText = '<span class="text-[9px] uppercase font-bold text-rose-600 bg-rose-100 px-1 py-0.2 rounded">Święto</span>';
         else if (isWeekend) dayBadgeText = '<span class="text-[9px] uppercase font-bold text-indigo-600 bg-indigo-100 px-1 py-0.2 rounded">Weekend</span>';
 
-        card.className = `h-24 border rounded-lg p-2.5 flex flex-col justify-between cursor-pointer transition select-none ${bgClass}`;
+        card.className = `h-24 border rounded-2xl p-2.5 flex flex-col justify-between cursor-pointer transition select-none ${bgClass}`;
         card.innerHTML = `
           <div class="flex justify-between items-center">
-            <span class="font-bold text-sm ${isDayOff ? 'text-indigo-700' : 'text-slate-700'}">${day}</span>
+            <span class="font-bold text-xs ${isDayOff ? 'text-indigo-800' : 'text-slate-700'}">${day}</span>
             ${dayBadgeText}
           </div>
           <div class="text-center">${statusBadge}</div>
-          <div class="text-[10px] text-slate-400 text-right">Zmień status</div>
+          <div class="text-[9px] text-slate-400 text-right">Zmień status</div>
         `;
 
         card.onclick = () => cycleAvailability(dateStr);
@@ -702,7 +772,7 @@
       }
     }
 
-    // ==================== TABELA NA EKRANIE ====================
+    // ==================== TABELA GRAFIKU ====================
     function renderScheduleTable() {
       const tbody = document.getElementById("schedule-table-body");
       if (!tbody) return;
@@ -734,19 +804,19 @@
         const missingCount = 4 - count;
 
         let statusHtml = "";
-        let rowClass = isDayOff ? "bg-indigo-50/40" : "hover:bg-slate-50";
+        let rowClass = isDayOff ? "bg-indigo-50/40 print-dayoff" : "hover:bg-slate-50";
 
         if (missingCount > 0 && !hasSpecialist) {
-          statusHtml = `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-rose-100 text-rose-800 border border-rose-300"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Brak ${missingCount} & Spec</span>`;
+          statusHtml = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Brak ${missingCount} & Spec</span>`;
           rowClass = "bg-rose-50/70 border-l-4 border-l-rose-500";
         } else if (missingCount > 0) {
-          statusHtml = `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300"><i class="fa-solid fa-circle-exclamation mr-1"></i> Brak ${missingCount} osób</span>`;
+          statusHtml = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300"><i class="fa-solid fa-circle-exclamation mr-1"></i> Brak ${missingCount} osób</span>`;
           rowClass = "bg-amber-50/50 border-l-4 border-l-amber-500";
         } else if (!hasSpecialist) {
-          statusHtml = `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-rose-100 text-rose-800 border border-rose-300"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Brak Specjalisty</span>`;
+          statusHtml = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Brak Specjalisty</span>`;
           rowClass = "bg-rose-50/70 border-l-4 border-l-rose-500";
         } else {
-          statusHtml = `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200"><i class="fa-solid fa-check mr-1"></i> Komplet</span>`;
+          statusHtml = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200"><i class="fa-solid fa-check mr-1"></i> Komplet</span>`;
         }
 
         let availCount = 0;
@@ -761,19 +831,19 @@
         const tr = document.createElement("tr");
         tr.className = rowClass;
         tr.innerHTML = `
-          <td class="p-2 text-center font-bold ${isDayOff ? 'text-indigo-800 font-extrabold' : 'text-slate-800'}">
-            <span>${day}</span> <span class="text-xs font-normal text-slate-500">(${dayLabelSuffix})</span>
+          <td class="p-2 text-center font-bold ${isDayOff ? 'text-indigo-800 print:text-black font-extrabold' : 'text-slate-800 print:text-black'}">
+            <span>${day}</span> <span class="text-xs font-normal text-slate-500 print:text-black">(${dayLabelSuffix})</span>
           </td>
-          <td class="p-2">${renderDoctorSlot(dateStr, 1, currentShift.doctor1_id, d1)}</td>
-          <td class="p-2">${renderDoctorSlot(dateStr, 2, currentShift.doctor2_id, d2)}</td>
-          <td class="p-2">${renderDoctorSlot(dateStr, 3, currentShift.doctor3_id, d3)}</td>
-          <td class="p-2">${renderDoctorSlot(dateStr, 4, currentShift.doctor4_id, d4)}</td>
-          <td class="p-2 text-center">
-            <button onclick="openAvailModal('${dateStr}', '${day} (${dayLabelSuffix})')" class="text-xs bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-600 px-2 py-1 rounded border border-slate-200 transition font-medium">
+          <td class="p-2">${renderDoctorSlot(dateStr, 1, currentShift.doctor1_id, d1, true)}</td>
+          <td class="p-2">${renderDoctorSlot(dateStr, 2, currentShift.doctor2_id, d2, false)}</td>
+          <td class="p-2">${renderDoctorSlot(dateStr, 3, currentShift.doctor3_id, d3, false)}</td>
+          <td class="p-2">${renderDoctorSlot(dateStr, 4, currentShift.doctor4_id, d4, false)}</td>
+          <td class="p-2 text-center no-print">
+            <button onclick="openAvailModal('${dateStr}', '${day} (${dayLabelSuffix})')" class="text-xs bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-600 px-2 py-1 rounded-xl border border-slate-200 transition font-medium">
               <i class="fa-solid fa-users mr-1 text-slate-400"></i> ${availCount} dostępnych
             </button>
           </td>
-          <td class="p-2 text-center">${statusHtml}</td>
+          <td class="p-2 text-center no-print">${statusHtml}</td>
         `;
         tbody.appendChild(tr);
       }
@@ -781,16 +851,23 @@
       if (isCoordinator) renderDoctorStats();
     }
 
-    function renderDoctorSlot(dateStr, slotIndex, currentId, docObj) {
+    function renderDoctorSlot(dateStr, slotIndex, currentId, docObj, isSlot1) {
       if (!isCoordinator) {
         if (!docObj) {
-          return `<span class="text-rose-400 italic text-xs font-semibold bg-rose-50 px-2 py-0.5 rounded border border-rose-200 inline-block">-- Wolny wakat --</span>`;
+          return `
+            <div class="no-print text-rose-400 italic text-xs font-semibold bg-rose-50 px-2 py-0.5 rounded border border-rose-200 inline-block">-- Wolny wakat --</div>
+            <div class="hidden print:block text-slate-400 italic text-[8pt]">—</div>
+          `;
         }
+        
+        // Stanowisko 1 (Specjalista) jest w druku pogrubione, brak nawiasów
+        const printClass = isSlot1 ? "font-bold text-black" : "font-normal text-black";
+
         return `
           <div class="text-xs flex items-center justify-between">
-            <span class="font-medium text-slate-900">${docObj.name}</span>
-            <span class="ml-1 text-[10px] px-1 py-0.2 rounded ${docObj.role === 'specialist' ? 'bg-blue-100 text-blue-800 font-semibold' : 'bg-emerald-100 text-emerald-800'}">
-              ${docObj.role === 'specialist' ? 'Spec' : 'Rez'}
+            <span class="${printClass}">${docObj.name}</span>
+            <span class="no-print ml-1 text-[10px] px-1 py-0.2 rounded font-bold ${docObj.role === 'specialist' ? 'bg-brand-50 text-brand-700 border border-brand-100' : 'bg-slate-100 text-slate-600'}">
+              ${docObj.role === 'specialist' ? 'Specjalista' : 'Rezydent'}
             </span>
           </div>
         `;
@@ -828,415 +905,23 @@
       });
       optGroupOthers += `</optgroup>`;
 
+      const printText = docObj 
+        ? `<div class="hidden print:block text-[8pt] ${isSlot1 ? 'font-bold text-black' : 'font-normal text-black'}">${docObj.name}</div>` 
+        : `<div class="hidden print:block text-[8pt] text-slate-400 italic">—</div>`;
+
       return `
-        <select onchange="updateShiftSlot('${dateStr}', ${slotIndex}, this.value)" 
-          class="w-full text-xs bg-white border ${docObj ? 'border-slate-300' : 'border-rose-400 bg-rose-50/50'} rounded p-1.5 focus:ring-1 focus:ring-blue-500 outline-none">
-          <option value="">-- Wolny wakat --</option>
-          ${declaredDocs.length > 0 ? optGroupDeclared : ''}
-          ${optGroupOthers}
-        </select>
+        ${printText}
+        <div class="no-print">
+          <select onchange="updateShiftSlot('${dateStr}', ${slotIndex}, this.value)" 
+            class="w-full text-xs bg-white border ${docObj ? 'border-slate-300' : 'border-rose-400 bg-rose-50/50'} rounded-lg p-1.5 focus:ring-1 focus:ring-blue-500 outline-none">
+            <option value="">-- Wolny wakat --</option>
+            ${declaredDocs.length > 0 ? optGroupDeclared : ''}
+            ${optGroupOthers}
+          </select>
+        </div>
       `;
     }
 
     function updateShiftSlot(dateStr, slotIndex, docId) {
       if (!isCoordinator) return;
-      if (!state.shifts[dateStr]) {
-        state.shifts[dateStr] = { doctor1_id: null, doctor2_id: null, doctor3_id: null, doctor4_id: null };
-      }
-      state.shifts[dateStr][`doctor${slotIndex}_id`] = docId || null;
-      renderScheduleTable();
-    }
-
-    function openAvailModal(dateStr, label) {
-      document.getElementById("modal-avail-date-title").innerText = `Dyspozycje lekarzy: ${label}`;
-      const list = document.getElementById("modal-avail-list");
-      list.innerHTML = "";
-
-      state.doctors.forEach(doc => {
-        const status = state.availabilities[`${doc.id}_${dateStr}`] || 'none';
-        let badge = `<span class="text-slate-400">Brak deklaracji</span>`;
-
-        if (status === 'preferred') {
-          badge = `<span class="font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">Preferuje (Chce)</span>`;
-        } else if (status === 'available') {
-          badge = `<span class="font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded">Dostępny (Może)</span>`;
-        } else if (status === 'unavailable') {
-          badge = `<span class="font-bold text-rose-700 bg-rose-100 px-2 py-0.5 rounded">Niedostępny / Urlop</span>`;
-        }
-
-        const div = document.createElement("div");
-        div.className = "flex justify-between items-center p-2 rounded bg-slate-50 border border-slate-100";
-        div.innerHTML = `
-          <div>
-            <span class="font-semibold text-slate-800">${doc.name}</span>
-            <span class="text-[10px] text-slate-500 ml-1">(${doc.role === 'specialist' ? 'Specjalista' : 'Rezydent'})</span>
-          </div>
-          <div>${badge}</div>
-        `;
-        list.appendChild(div);
-      });
-
-      document.getElementById("modal-avail-details").style.display = 'flex';
-    }
-
-    function closeAvailModal() {
-      document.getElementById("modal-avail-details").style.display = 'none';
-    }
-
-    // ==================== AUTOMATYCZNY SILNIK PLANOWANIA ====================
-    function generateAutomaticSchedule() {
-      if (!isCoordinator) return;
-      const { numDays, year, month } = getDaysInCurrentMonth();
-      const mKey = getCurrentMonthKey();
-
-      const shiftCounts = {};
-      state.doctors.forEach(d => { shiftCounts[d.id] = 0; });
-      const newShifts = {};
-
-      for (let day = 1; day <= numDays; day++) {
-        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-        const prevDateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day - 1).padStart(2, '0')}`;
-        
-        const prevAssigned = prevDateStr in newShifts 
-          ? [
-              newShifts[prevDateStr].doctor1_id, 
-              newShifts[prevDateStr].doctor2_id, 
-              newShifts[prevDateStr].doctor3_id,
-              newShifts[prevDateStr].doctor4_id
-            ].filter(Boolean)
-          : [];
-
-        const eligibleDocs = state.doctors.filter(doc => {
-          if (prevAssigned.includes(doc.id)) return false;
-          const pref = state.availabilities[`${doc.id}_${dateStr}`];
-          return pref === 'preferred' || pref === 'available';
-        });
-
-        const getDocScore = (doc) => {
-          const pref = state.availabilities[`${doc.id}_${dateStr}`];
-          const limits = state.monthly_limits[`${doc.id}_${mKey}`] || { min: 5, max: 7 };
-          
-          let score = 100 - (shiftCounts[doc.id] * 15);
-          if (pref === 'preferred') score += 40;
-          if (shiftCounts[doc.id] < limits.min) score += 30;
-          if (shiftCounts[doc.id] >= limits.max) score -= 90;
-          return score;
-        };
-
-        const availSpecs = eligibleDocs.filter(d => d.role === 'specialist').sort((a, b) => getDocScore(b) - getDocScore(a));
-        const availRes = eligibleDocs.filter(d => d.role === 'resident').sort((a, b) => getDocScore(b) - getDocScore(a));
-
-        const chosenToday = [];
-
-        // Hierarchia proporcji
-        if (availSpecs.length >= 2 && availRes.length >= 2) {
-          chosenToday.push(availSpecs[0], availSpecs[1], availRes[0], availRes[1]);
-        } else if (availSpecs.length >= 3 && availRes.length >= 1) {
-          chosenToday.push(availSpecs[0], availSpecs[1], availSpecs[2], availRes[0]);
-        } else if (availSpecs.length >= 1 && availRes.length >= 3) {
-          chosenToday.push(availSpecs[0], availRes[0], availRes[1], availRes[2]);
-        } else {
-          availSpecs.forEach(s => { if (chosenToday.length < 4) chosenToday.push(s); });
-          availRes.forEach(r => { if (chosenToday.length < 4) chosenToday.push(r); });
-        }
-
-        chosenToday.forEach(d => { shiftCounts[d.id]++; });
-
-        newShifts[dateStr] = {
-          doctor1_id: chosenToday[0] ? chosenToday[0].id : null,
-          doctor2_id: chosenToday[1] ? chosenToday[1].id : null,
-          doctor3_id: chosenToday[2] ? chosenToday[2].id : null,
-          doctor4_id: chosenToday[3] ? chosenToday[3].id : null
-        };
-      }
-
-      state.shifts = newShifts;
-      renderScheduleTable();
-      showToast("Wygenerowano grafik! Braki oznaczono na czerwono.");
-    }
-
-    async function saveScheduleToSupabase(notify = true) {
-      if (!isCoordinator) return;
-      try {
-        const rows = Object.entries(state.shifts).map(([date, s]) => ({
-          date,
-          doctor1_id: s.doctor1_id,
-          doctor2_id: s.doctor2_id,
-          doctor3_id: s.doctor3_id,
-          doctor4_id: s.doctor4_id,
-          updated_at: new Date().toISOString()
-        }));
-
-        const { error } = await supabaseClient.from('shifts').upsert(rows, { onConflict: 'date' });
-        if (!error) {
-          if (notify) showToast("Grafik zapisany w bazie!");
-        } else {
-          showToast("Błąd zapisu grafiku", "error");
-        }
-      } catch (err) {
-        showToast("Błąd bazy danych", "error");
-      }
-    }
-
-    function renderDoctorStats() {
-      const statsDiv = document.getElementById("stats-container");
-      if (!statsDiv) return;
-      statsDiv.innerHTML = "";
-
-      const mKey = getCurrentMonthKey();
-      const counts = {};
-      state.doctors.forEach(d => counts[d.id] = 0);
-
-      Object.values(state.shifts).forEach(s => {
-        if (s.doctor1_id && counts[s.doctor1_id] !== undefined) counts[s.doctor1_id]++;
-        if (s.doctor2_id && counts[s.doctor2_id] !== undefined) counts[s.doctor2_id]++;
-        if (s.doctor3_id && counts[s.doctor3_id] !== undefined) counts[s.doctor3_id]++;
-        if (s.doctor4_id && counts[s.doctor4_id] !== undefined) counts[s.doctor4_id]++;
-      });
-
-      state.doctors.forEach(doc => {
-        const count = counts[doc.id] || 0;
-        const limits = state.monthly_limits[`${doc.id}_${mKey}`] || { min: 5, max: 7 };
-        
-        let colorClass = "text-slate-700";
-        if (count < limits.min) colorClass = "text-amber-600 font-bold";
-        else if (count > limits.max) colorClass = "text-rose-600 font-bold";
-        else colorClass = "text-emerald-700 font-bold";
-
-        const card = document.createElement("div");
-        card.className = "bg-slate-50 border border-slate-200 p-2.5 rounded-lg flex justify-between items-center text-xs";
-        card.innerHTML = `
-          <div>
-            <div class="font-bold text-slate-800">${doc.name}</div>
-            <div class="text-[10px] text-slate-500">${doc.role === 'specialist' ? '★ Specjalista' : 'Rezydent'} (cel: ${limits.min}-${limits.max})</div>
-          </div>
-          <span class="text-sm ${colorClass}">${count} / ${limits.min}-${limits.max}</span>
-        `;
-        statsDiv.appendChild(card);
-      });
-    }
-
-    function renderDoctorsAdminTable() {
-      const tbody = document.getElementById("doctors-table-body");
-      if (!tbody) return;
-      document.getElementById("doctor-count-badge").innerText = `${state.doctors.length} lekarzy`;
-      tbody.innerHTML = "";
-
-      state.doctors.forEach(doc => {
-        const tr = document.createElement("tr");
-        tr.className = "hover:bg-slate-50 transition";
-        tr.innerHTML = `
-          <td class="p-3 font-semibold text-slate-800">${doc.name}</td>
-          <td class="p-3">
-            <span class="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-semibold ${doc.role === 'specialist' ? 'bg-blue-100 text-blue-800' : 'bg-emerald-100 text-emerald-800'}">
-              ${doc.role === 'specialist' ? '★ Specjalista' : 'Rezydent'}
-            </span>
-          </td>
-          <td class="p-3 text-right space-x-2">
-            <button onclick="openEditDoctorModal('${doc.id}')" class="text-blue-600 hover:text-blue-800 text-xs font-medium bg-blue-50 px-2.5 py-1 rounded">
-              <i class="fa-solid fa-pen-to-square mr-1"></i> Edytuj
-            </button>
-            <button onclick="deleteDoctor('${doc.id}')" class="text-rose-600 hover:text-rose-800 text-xs font-medium bg-rose-50 px-2.5 py-1 rounded">
-              <i class="fa-solid fa-trash-can mr-1"></i> Usuń
-            </button>
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
-    }
-
-    async function handleAddDoctor(e) {
-      e.preventDefault();
-      if (!isCoordinator) return;
-      const name = document.getElementById("new-doc-name").value.trim();
-      const role = document.getElementById("new-doc-role").value;
-
-      if (!name) return;
-      const { data, error } = await supabaseClient.from('doctors').insert([{ name, role }]).select().single();
-      if (!error && data) {
-        state.doctors.push(data);
-        document.getElementById("new-doc-name").value = "";
-        renderDoctorsAdminTable();
-        populateDoctorSelect();
-        showToast("Dodano lekarza");
-      } else {
-        showToast("Błąd zapisu w bazie!", "error");
-      }
-    }
-
-    function openEditDoctorModal(id) {
-      if (!isCoordinator) return;
-      const doc = state.doctors.find(d => d.id === id);
-      if (!doc) return;
-      document.getElementById("edit-doc-id").value = doc.id;
-      document.getElementById("edit-doc-name").value = doc.name;
-      document.getElementById("edit-doc-role").value = doc.role;
-      document.getElementById("modal-edit-doctor").style.display = 'flex';
-    }
-
-    function closeEditModal() {
-      document.getElementById("modal-edit-doctor").style.display = 'none';
-    }
-
-    async function handleSaveEditDoctor(e) {
-      e.preventDefault();
-      if (!isCoordinator) return;
-      const id = document.getElementById("edit-doc-id").value;
-      const name = document.getElementById("edit-doc-name").value.trim();
-      const role = document.getElementById("edit-doc-role").value;
-
-      const { error } = await supabaseClient.from('doctors').update({ name, role }).eq('id', id);
-      if (!error) {
-        const idx = state.doctors.findIndex(d => d.id === id);
-        if (idx !== -1) state.doctors[idx] = { id, name, role };
-        closeEditModal();
-        renderDoctorsAdminTable();
-        populateDoctorSelect();
-        showToast("Zaktualizowano dane lekarza");
-      } else {
-        showToast("Błąd zapisu!", "error");
-      }
-    }
-
-    async function deleteDoctor(id) {
-      if (!isCoordinator) return;
-      if (!confirm("Czy na pewno usunąć tego lekarza? Spowoduje to usunięcie jego deklaracji.")) return;
-      const { error } = await supabaseClient.from('doctors').delete().eq('id', id);
-      if (!error) {
-        state.doctors = state.doctors.filter(d => d.id !== id);
-        renderDoctorsAdminTable();
-        populateDoctorSelect();
-        showToast("Lekarz usunięty");
-      } else {
-        showToast("Błąd usuwania!", "error");
-      }
-    }
-
-    // ==================== GENEROWANIE CZYSTEGO PDF NA DOKŁADNIE 1 STRONĘ A4 ====================
-    function exportScheduleToSinglePagePDF() {
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF({
-        orientation: "portrait",
-        unit: "mm",
-        format: "a4"
-      });
-
-      const { numDays, year, month } = getDaysInCurrentMonth();
-      const months = ["Styczeń", "Luty", "Marzec", "Kwiecień", "Maj", "Czerwiec", "Lipiec", "Sierpień", "Wrzesień", "Październik", "Listopad", "Grudzień"];
-      const monthLabel = `${months[month]} ${year}`;
-
-      // Nagłówek urzędowy
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(10.5);
-      doc.text("Wielospecjalistyczny Szpital Miejski im. Józefa Strusia w Poznaniu", 10, 11);
-      
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(8.5);
-      doc.text("Oddział Anestezjologii i Intensywnej Terapii", 10, 15);
-
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(11);
-      doc.text(`OBSADA DYŻUROWA: ${monthLabel.toUpperCase()}`, 200, 13, { align: "right" });
-
-      doc.setDrawColor(30, 41, 59);
-      doc.setLineWidth(0.4);
-      doc.line(10, 18, 200, 18);
-
-      // Budowanie wierszy tabeli
-      const dayNames = ['Nd', 'Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'Sb'];
-      const tableData = [];
-      const rowStyles = {};
-
-      for (let day = 1; day <= numDays; day++) {
-        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-        const dayOfWeek = new Date(year, month, day).getDay();
-        const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
-        const isHoliday = isPolishPublicHoliday(year, month, day);
-        const isDayOff = isWeekend || isHoliday;
-
-        const currentShift = state.shifts[dateStr] || {};
-        const d1 = state.doctors.find(d => d.id === currentShift.doctor1_id);
-        const d2 = state.doctors.find(d => d.id === currentShift.doctor2_id);
-        const d3 = state.doctors.find(d => d.id === currentShift.doctor3_id);
-        const d4 = state.doctors.find(d => d.id === currentShift.doctor4_id);
-
-        const dayName = dayNames[dayOfWeek];
-        const dayCellText = isHoliday ? `${day} (${dayName} - Św.)` : `${day} (${dayName})`;
-
-        tableData.push([
-          dayCellText,
-          d1 ? d1.name : "—",
-          d2 ? d2.name : "—",
-          d3 ? d3.name : "—",
-          d4 ? d4.name : "—"
-        ]);
-
-        if (isDayOff) {
-          rowStyles[day - 1] = { fillColor: [235, 238, 243] }; // Szare tło dla świąt/weekendów
-        }
-      }
-
-      // Dynamiczne dopasowanie wysokości, by 31 dni + nagłówek + podpisy zmieściły się na 1 stronie A4 (297 mm)
-      const dynamicRowHeight = numDays >= 31 ? 4.9 : (numDays === 30 ? 5.1 : 5.4);
-      const dynamicFontSize = numDays >= 31 ? 7.5 : 8;
-
-      doc.autoTable({
-        startY: 20,
-        margin: { left: 10, right: 10 },
-        head: [['Dzień', 'Stanowisko 1 (Specjalista)', 'Stanowisko 2', 'Stanowisko 3', 'Stanowisko 4']],
-        body: tableData,
-        theme: 'grid',
-        tableLineColor: [30, 41, 59],
-        tableLineWidth: 0.25,
-        styles: {
-          font: 'helvetica',
-          fontSize: dynamicFontSize,
-          minCellHeight: dynamicRowHeight,
-          cellPadding: { top: 1, bottom: 1, left: 1.5, right: 1.5 },
-          textColor: [15, 23, 42],
-          lineColor: [100, 116, 139],
-          lineWidth: 0.15,
-          valign: 'middle'
-        },
-        headStyles: {
-          fillColor: [241, 245, 249],
-          textColor: [15, 23, 42],
-          fontStyle: 'bold',
-          lineWidth: 0.25,
-          halign: 'left'
-        },
-        columnStyles: {
-          0: { cellWidth: 23, halign: 'center', fontStyle: 'bold' },
-          1: { cellWidth: 42, fontStyle: 'bold' }, // Pogrubienie specjalisty ze Stanowiska 1
-          2: { cellWidth: 42 },
-          3: { cellWidth: 42 },
-          4: { cellWidth: 41 }
-        },
-        didParseCell: function(data) {
-          if (data.section === 'body' && rowStyles[data.row.index]) {
-            data.cell.styles.fillColor = rowStyles[data.row.index].fillColor;
-          }
-        }
-      });
-
-      // Podpisy na samym dole kartki A4
-      const finalY = doc.lastAutoTable.finalY + 7;
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(7.5);
-      doc.setDrawColor(148, 163, 184);
-
-      // Lewy podpis
-      doc.line(16, finalY + 8, 70, finalY + 8);
-      doc.text("Koordynator Dyżurów OIT", 43, finalY + 12, { align: "center" });
-
-      // Prawy podpis
-      doc.line(140, finalY + 8, 194, finalY + 8);
-      doc.text("Kierownik Oddziału / Ordynator", 167, finalY + 12, { align: "center" });
-
-      // Bezpośrednie pobranie pliku PDF
-      doc.save(`Grafik_OIT_${months[month]}_${year}.pdf`);
-      showToast("Pobrano plik PDF!");
-    }
-  </script>
-</body>
-</html>
+      if (!state.shifts[dateStr])
