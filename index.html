@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dyżury OIT - System Planowania</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     @media print {
@@ -17,14 +16,13 @@
 </head>
 <body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col">
 
-  <!-- Pasek nawigacji -->
   <header class="bg-blue-900 text-white shadow-md no-print sticky top-0 z-40">
     <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-4">
       <div class="flex items-center space-x-3">
         <i class="fa-solid fa-hospital-user text-2xl text-blue-300"></i>
         <div>
           <h1 class="font-bold text-lg leading-tight">OIT Grafik Dyżurów</h1>
-          <p class="text-xs text-blue-200">System planowania obsady dyżurnej</p>
+          <p class="text-xs text-blue-200">System deklaracji i planowania obsady</p>
         </div>
       </div>
       
@@ -42,7 +40,6 @@
     </div>
   </header>
 
-  <!-- Pasek powiadomień Toast -->
   <div id="toast" class="fixed bottom-5 right-5 z-50 transform transition-all duration-300 translate-y-20 opacity-0 bg-slate-900 text-white px-4 py-3 rounded-lg shadow-xl flex items-center space-x-3">
     <i id="toast-icon" class="fa-solid fa-circle-check text-emerald-400"></i>
     <span id="toast-msg" class="text-sm">Komunikat</span>
@@ -50,19 +47,19 @@
 
   <main class="max-w-7xl mx-auto px-4 py-6 flex-grow w-full">
 
-    <!-- ==================== WIDOK 1: DEKLARACJA LEKARZA ==================== -->
+    <!-- WIDOK 1: DEKLARACJA LEKARZA -->
     <section id="view-doctor" class="space-y-6">
       <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-wrap justify-between items-center gap-4">
         <div class="w-full md:w-auto">
           <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Wybierz swoje nazwisko</label>
-          <select id="doctor-select" onchange="loadDoctorAvailabilities()" class="w-full md:w-80 bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-800 font-semibold focus:ring-2 focus:ring-blue-500 outline-none">
+          <select id="doctor-select" onchange="handleDoctorChange()" class="w-full md:w-80 bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-800 font-semibold focus:ring-2 focus:ring-blue-500 outline-none">
             <option value="">-- Wybierz lekarza z listy --</option>
           </select>
         </div>
 
         <div class="flex items-center space-x-2">
           <button onclick="changeMonth(-1)" class="p-2 border rounded-lg hover:bg-slate-50 text-slate-600"><i class="fa-solid fa-chevron-left"></i></button>
-          <span id="calendar-month-label" class="font-bold text-base px-3 text-slate-700 min-w-[140px] text-center">Listopad 2026</span>
+          <span id="calendar-month-label" class="font-bold text-base px-3 text-slate-700 min-w-[140px] text-center">Miesiąc</span>
           <button onclick="changeMonth(1)" class="p-2 border rounded-lg hover:bg-slate-50 text-slate-600"><i class="fa-solid fa-chevron-right"></i></button>
         </div>
 
@@ -74,7 +71,7 @@
             <span class="w-2 h-2 rounded-full bg-blue-500 mr-1.5"></span> Dostępny (Mogę)
           </span>
           <span class="inline-flex items-center px-2.5 py-1 rounded bg-rose-50 text-rose-700 border border-rose-200">
-            <span class="w-2 h-2 rounded-full bg-rose-500 mr-1.5"></span> Niedostępny / Urlop
+            <span class="w-2 h-2 rounded-full bg-rose-500 mr-1.5"></span> Niedostępny
           </span>
         </div>
       </div>
@@ -82,8 +79,8 @@
       <div class="bg-blue-50 border-l-4 border-blue-600 p-4 rounded-r-lg text-sm text-blue-900 flex items-start space-x-3">
         <i class="fa-solid fa-info-circle text-blue-600 text-lg mt-0.5"></i>
         <div>
-          <p class="font-semibold">Klikaj w kafelki kalendarza, aby ustawić swój status.</p>
-          <p class="text-xs text-blue-700 mt-0.5">Zmiany zapisują się natychmiast w centralnej bazie danych.</p>
+          <p class="font-semibold">Klikaj w kafelki dni, aby zmienić dyspozycyjność.</p>
+          <p class="text-xs text-blue-700 mt-0.5">Każda zmiana jest automatycznie zapisywana w chmurze.</p>
         </div>
       </div>
 
@@ -95,12 +92,12 @@
       </div>
     </section>
 
-    <!-- ==================== WIDOK 2: GRAFIK ODDZIAŁU ==================== -->
+    <!-- WIDOK 2: GRAFIK ODDZIAŁU -->
     <section id="view-schedule" class="space-y-6 hidden">
       <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-wrap justify-between items-center gap-4 no-print">
         <div>
           <h2 class="text-lg font-bold text-slate-800">Miesięczny Harmonogram Dyżurów OIT</h2>
-          <p class="text-xs text-slate-500">Wymóg: 3 dyżurnych na dobę, w tym minimum 1 specjalista.</p>
+          <p class="text-xs text-slate-500">Zasada: dokładnie 3 dyżurnych na dobę, w tym minimum 1 specjalista.</p>
         </div>
 
         <div class="flex flex-wrap items-center gap-2">
@@ -108,7 +105,7 @@
             <i class="fa-solid fa-wand-magic-sparkles"></i>
             <span>Ułóż automatycznie</span>
           </button>
-          <button onclick="saveScheduleToSupabase()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold text-sm flex items-center space-x-2 shadow-sm transition">
+          <button onclick="saveOnlineData()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold text-sm flex items-center space-x-2 shadow-sm transition">
             <i class="fa-solid fa-floppy-disk"></i>
             <span>Zapisz grafik</span>
           </button>
@@ -118,7 +115,6 @@
         </div>
       </div>
 
-      <!-- Tabela Dyżurów -->
       <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <div class="overflow-x-auto">
           <table class="w-full text-left text-sm border-collapse">
@@ -128,7 +124,7 @@
                 <th class="p-3">Dyżurny 1 (Specjalista)</th>
                 <th class="p-3">Dyżurny 2</th>
                 <th class="p-3">Dyżurny 3</th>
-                <th class="p-3 w-32 text-center no-print">Status Reguł</th>
+                <th class="p-3 w-32 text-center no-print">Status</th>
               </tr>
             </thead>
             <tbody id="schedule-table-body" class="divide-y divide-slate-100"></tbody>
@@ -142,27 +138,25 @@
       </div>
     </section>
 
-    <!-- ==================== WIDOK 3: PANEL ADMINA ==================== -->
+    <!-- WIDOK 3: PANEL ADMINA -->
     <section id="view-admin" class="space-y-6 hidden">
-      <!-- Pasek stanu administratora -->
       <div class="bg-slate-900 text-white p-5 rounded-xl shadow-sm flex flex-wrap justify-between items-center gap-4">
         <div>
           <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-emerald-500/20 text-emerald-300 mb-1">
-            <i class="fa-solid fa-shield-halved mr-1"></i> Sesja Autoryzowana
+            <i class="fa-solid fa-shield-halved mr-1"></i> Sesja Koordynatora
           </span>
-          <h2 class="text-xl font-bold">Zarządzanie Zespołem Lekarskim i Konfiguracją</h2>
+          <h2 class="text-xl font-bold">Edycja Listy Lekarzy i Personelu OIT</h2>
         </div>
         <div class="flex items-center space-x-2">
           <button onclick="promptChangePin()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-700 transition">
             <i class="fa-solid fa-key mr-1"></i> Zmień PIN
           </button>
           <button onclick="logoutAdmin()" class="bg-rose-900/40 hover:bg-rose-800/60 text-rose-200 px-3 py-1.5 rounded-lg text-xs font-medium border border-rose-800 transition">
-            <i class="fa-solid fa-arrow-right-from-bracket mr-1"></i> Zablokuj panel
+            <i class="fa-solid fa-arrow-right-from-bracket mr-1"></i> Wyjdź
           </button>
         </div>
       </div>
 
-      <!-- Formularz dodawania lekarza -->
       <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
         <h3 class="text-base font-bold text-slate-800 mb-3 flex items-center">
           <i class="fa-solid fa-user-plus text-blue-600 mr-2"></i> Dodaj nowego lekarza
@@ -175,8 +169,8 @@
           <div class="sm:col-span-3">
             <label class="block text-xs font-semibold text-slate-600 mb-1">Kwalifikacja na OIT</label>
             <select id="new-doc-role" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-              <option value="specialist">Specjalista Anestezjologii i IT</option>
-              <option value="resident">Lekarz Rezydent</option>
+              <option value="specialist">Specjalista</option>
+              <option value="resident">Rezydent</option>
             </select>
           </div>
           <div class="sm:col-span-2">
@@ -185,18 +179,17 @@
           </div>
           <div class="sm:col-span-2">
             <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg text-sm transition">
-              <i class="fa-solid fa-plus mr-1"></i> Zapisz
+              <i class="fa-solid fa-plus mr-1"></i> Dodaj
             </button>
           </div>
         </form>
       </div>
 
-      <!-- Tabela Lekarzy -->
       <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
           <div>
-            <h3 class="font-bold text-slate-800">Personel lekarski oddziału</h3>
-            <p class="text-xs text-slate-500">Kliknij „Edytuj”, aby skorygować dane lub zmienić status rezydent/specjalista.</p>
+            <h3 class="font-bold text-slate-800">Personel lekarski</h3>
+            <p class="text-xs text-slate-500">Zarządzaj statusem (Specjalista / Rezydent) oraz limitami.</p>
           </div>
           <span id="doctor-count-badge" class="bg-blue-100 text-blue-800 text-xs px-3 py-1 rounded-full font-bold">0 lekarzy</span>
         </div>
@@ -206,7 +199,7 @@
               <tr>
                 <th class="p-3">Lekarz</th>
                 <th class="p-3">Status OIT</th>
-                <th class="p-3 text-center">Limit dyżurów</th>
+                <th class="p-3 text-center">Limit</th>
                 <th class="p-3 text-right">Akcje</th>
               </tr>
             </thead>
@@ -218,9 +211,9 @@
 
   </main>
 
-  <!-- ==================== MODAL: EDYCJA LEKARZA ==================== -->
+  <!-- MODAL: EDYCJA LEKARZA -->
   <div id="modal-edit-doctor" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center hidden p-4">
-    <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 animate-scale-up">
+    <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
       <div class="flex justify-between items-center mb-4">
         <h3 class="font-bold text-slate-800 text-base flex items-center">
           <i class="fa-solid fa-user-pen text-blue-600 mr-2"></i> Edycja danych lekarza
@@ -236,30 +229,30 @@
         <div>
           <label class="block text-xs font-semibold text-slate-600 mb-1">Rola na OIT</label>
           <select id="edit-doc-role" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-            <option value="specialist">Specjalista Anestezjologii i IT</option>
-            <option value="resident">Lekarz Rezydent</option>
+            <option value="specialist">Specjalista</option>
+            <option value="resident">Rezydent</option>
           </select>
         </div>
         <div>
-          <label class="block text-xs font-semibold text-slate-600 mb-1">Docelowy limit dyżurów w miesiącu</label>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Miesięczny limit dyżurów</label>
           <input type="number" id="edit-doc-max" min="1" max="15" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
         </div>
         <div class="flex justify-end space-x-2 pt-2">
           <button type="button" onclick="closeEditModal()" class="px-4 py-2 border rounded-lg text-sm text-slate-600 hover:bg-slate-50 font-medium">Anuluj</button>
-          <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition">Zapisz zmiany</button>
+          <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition">Zapisz</button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- ==================== MODAL: AUTORYZACJA PIN ADMINA ==================== -->
+  <!-- MODAL: PIN ADMINA -->
   <div id="modal-pin-auth" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center hidden p-4">
     <div class="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6 text-center">
       <div class="w-12 h-12 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center mx-auto mb-3">
         <i class="fa-solid fa-lock text-xl"></i>
       </div>
-      <h3 class="font-bold text-slate-800 text-lg mb-1">Dostęp do Panelu Koordynatora</h3>
-      <p class="text-xs text-slate-500 mb-4">Podaj kod PIN administratora oddziału (Domyślny: 1234)</p>
+      <h3 class="font-bold text-slate-800 text-lg mb-1">Panel Koordynatora</h3>
+      <p class="text-xs text-slate-500 mb-4">Wpisz kod PIN (Domyślny: 1234)</p>
       
       <form onsubmit="handleVerifyPin(event)" class="space-y-4">
         <input type="password" id="admin-pin-input" maxlength="8" placeholder="••••" autofocus required class="text-center tracking-widest text-2xl font-bold w-full border border-slate-300 rounded-lg py-2 focus:ring-2 focus:ring-blue-500 outline-none">
@@ -272,57 +265,84 @@
   </div>
 
   <script>
-    // ========================================================
-    // 1. KONFIGURACJA SUPABASE (WSTAW SWOJE WŁASNE DANE Z BAZY)
-    // ========================================================
-    const SUPABASE_URL = "TUTAJ_WSTAW_SWOJ_SUPABASE_URL";
-    const SUPABASE_ANON_KEY = "TUTAJ_WSTAW_SWOJ_SUPABASE_ANON_KEY";
+    // PODPIĘTY TWÓJ ADRES API:
+    const NPOINT_URL = "https://api.npoint.io/f8d77a670df72c7d0306";
 
-    let supabase = null;
-    if (SUPABASE_URL.startsWith("http")) {
-      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    }
+    let state = {
+      admin_pin: "1234",
+      doctors: [
+        { id: "d1", name: "dr hab. n. med. Jan Kowalski", role: "specialist", max_shifts: 6 },
+        { id: "d2", name: "dr n. med. Anna Nowak", role: "specialist", max_shifts: 6 },
+        { id: "d3", name: "lek. Piotr Wiśniewski", role: "specialist", max_shifts: 5 },
+        { id: "d4", name: "lek. Maria Zielińska", role: "resident", max_shifts: 7 },
+        { id: "d5", name: "lek. Tomasz Kamiński", role: "resident", max_shifts: 6 },
+        { id: "d6", name: "lek. Ewa Lewandowska", role: "resident", max_shifts: 7 }
+      ],
+      availabilities: {},
+      shifts: {}
+    };
 
-    // Stan globalny aplikacji
     let currentDate = new Date();
     currentDate.setDate(1);
-    let doctors = [];
-    let availabilities = {};
-    let shifts = {};
     let selectedDoctorId = "";
     let isAdminAuthenticated = false;
 
-    // Inicjalizacja
     document.addEventListener("DOMContentLoaded", async () => {
-      if (!supabase) {
-        showToast("Podmień SUPABASE_URL i ANON_KEY w kodzie!", "error");
-      }
-      await loadDoctors();
+      await fetchOnlineData();
       updateMonthLabel();
+      populateDoctorSelect();
       renderDoctorCalendar();
-      await loadShiftsForMonth();
+      renderDoctorsAdminTable();
     });
 
-    // Powiadomienia toast
     function showToast(message, type = "success") {
       const toast = document.getElementById("toast");
       const msg = document.getElementById("toast-msg");
       const icon = document.getElementById("toast-icon");
       
       msg.textContent = message;
-      if (type === "error") {
-        icon.className = "fa-solid fa-triangle-exclamation text-rose-400";
-      } else {
-        icon.className = "fa-solid fa-circle-check text-emerald-400";
-      }
+      icon.className = type === "error" ? "fa-solid fa-triangle-exclamation text-rose-400" : "fa-solid fa-circle-check text-emerald-400";
       
       toast.classList.remove("translate-y-20", "opacity-0");
       setTimeout(() => {
         toast.classList.add("translate-y-20", "opacity-0");
-      }, 3500);
+      }, 3000);
     }
 
-    // Nawigacja
+    async function fetchOnlineData() {
+      try {
+        const res = await fetch(NPOINT_URL);
+        if (res.ok) {
+          const remoteData = await res.json();
+          if (remoteData && typeof remoteData === 'object') {
+            state.admin_pin = remoteData.admin_pin || "1234";
+            state.doctors = Array.isArray(remoteData.doctors) ? remoteData.doctors : state.doctors;
+            state.availabilities = remoteData.availabilities || {};
+            state.shifts = remoteData.shifts || {};
+          }
+        }
+      } catch (err) {
+        showToast("Nie udało się pobrać danych z bazy online", "error");
+      }
+    }
+
+    async function saveOnlineData() {
+      try {
+        const res = await fetch(NPOINT_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(state)
+        });
+        if (res.ok) {
+          showToast("Zsynchronizowano dane online");
+        } else {
+          showToast("Błąd zapisu w chmurze", "error");
+        }
+      } catch (err) {
+        showToast("Błąd połączenia z bazą", "error");
+      }
+    }
+
     function switchView(viewName) {
       ['doctor', 'schedule', 'admin'].forEach(v => {
         document.getElementById(`view-${v}`).classList.add('hidden');
@@ -334,14 +354,11 @@
       const activeBtn = document.getElementById(`nav-${viewName}`);
       activeBtn.className = "px-3 py-1.5 rounded-md font-medium bg-blue-600 text-white transition";
 
-      if (viewName === 'schedule') {
-        renderScheduleTable();
-      }
+      if (viewName === 'schedule') renderScheduleTable();
+      if (viewName === 'admin') renderDoctorsAdminTable();
     }
 
-    // ==========================================
-    // LOGIKA ADMINA & AUTORYZACJA PIN
-    // ==========================================
+    // ADMIN
     function openAdminAuth() {
       if (isAdminAuthenticated) {
         switchView('admin');
@@ -355,82 +372,40 @@
       document.getElementById("modal-pin-auth").classList.add("hidden");
     }
 
-    async function handleVerifyPin(e) {
+    function handleVerifyPin(e) {
       e.preventDefault();
       const enteredPin = document.getElementById("admin-pin-input").value;
-
-      let correctPin = "1234";
-      if (supabase) {
-        const { data } = await supabase.from('app_settings').select('value').eq('key', 'admin_pin').single();
-        if (data && data.value) correctPin = data.value;
-      }
-
-      if (enteredPin === correctPin) {
+      if (enteredPin === state.admin_pin) {
         isAdminAuthenticated = true;
         closePinModal();
         switchView('admin');
         showToast("Zalogowano jako Administrator");
       } else {
-        showToast("Nieprawidłowy kod PIN!", "error");
+        showToast("Nieprawidłowy PIN!", "error");
       }
     }
 
     function logoutAdmin() {
       isAdminAuthenticated = false;
       switchView('doctor');
-      showToast("Wylogowano z Panelu Administratora");
+      showToast("Wylogowano");
     }
 
     async function promptChangePin() {
-      const newPin = prompt("Podaj nowy, min. 4-cyfrowy kod PIN administratora:");
-      if (!newPin || newPin.length < 4) {
-        showToast("PIN musi mieć co najmniej 4 znaki", "error");
-        return;
+      const newPin = prompt("Podaj nowy kod PIN administratora (min. 4 cyfry):");
+      if (newPin && newPin.length >= 4) {
+        state.admin_pin = newPin;
+        await saveOnlineData();
+        showToast("PIN zmieniony pomyślnie");
       }
-
-      if (supabase) {
-        const { error } = await supabase.from('app_settings').upsert({ key: 'admin_pin', value: newPin });
-        if (!error) {
-          showToast("Zmieniono PIN administratora");
-        } else {
-          showToast("Błąd zapisu PINu w bazie", "error");
-        }
-      }
-    }
-
-    // ==========================================
-    // ZARZĄDZANIE LEKARZAMI (CRUD)
-    // ==========================================
-    async function loadDoctors() {
-      if (!supabase) return;
-      const { data, error } = await supabase.from('doctors').select('*').order('name');
-      if (error) {
-        console.error(error);
-        return;
-      }
-      doctors = data || [];
-      populateDoctorSelect();
-      renderDoctorsAdminTable();
-    }
-
-    function populateDoctorSelect() {
-      const select = document.getElementById("doctor-select");
-      select.innerHTML = '<option value="">-- Wybierz lekarza z listy --</option>';
-      doctors.forEach(doc => {
-        const opt = document.createElement("option");
-        opt.value = doc.id;
-        opt.innerText = `${doc.name} (${doc.role === 'specialist' ? 'Specjalista' : 'Rezydent'})`;
-        select.appendChild(opt);
-      });
-      if (selectedDoctorId) select.value = selectedDoctorId;
     }
 
     function renderDoctorsAdminTable() {
       const tbody = document.getElementById("doctors-table-body");
-      document.getElementById("doctor-count-badge").innerText = `${doctors.length} lekarzy`;
+      document.getElementById("doctor-count-badge").innerText = `${state.doctors.length} lekarzy`;
       tbody.innerHTML = "";
 
-      doctors.forEach(doc => {
+      state.doctors.forEach(doc => {
         const tr = document.createElement("tr");
         tr.className = "hover:bg-slate-50 transition";
         tr.innerHTML = `
@@ -461,18 +436,22 @@
       const max_shifts = parseInt(document.getElementById("new-doc-max").value) || 6;
 
       if (!name) return;
-      const { error } = await supabase.from('doctors').insert([{ name, role, max_shifts }]);
-      if (error) {
-        showToast("Błąd zapisu lekarza", "error");
-      } else {
-        showToast("Dodano nowego lekarza");
-        document.getElementById("new-doc-name").value = "";
-        await loadDoctors();
-      }
+      const newDoc = {
+        id: "d_" + Date.now(),
+        name,
+        role,
+        max_shifts
+      };
+      state.doctors.push(newDoc);
+      document.getElementById("new-doc-name").value = "";
+      renderDoctorsAdminTable();
+      populateDoctorSelect();
+      await saveOnlineData();
+      showToast("Dodano lekarza");
     }
 
     function openEditDoctorModal(id) {
-      const doc = doctors.find(d => d.id === id);
+      const doc = state.doctors.find(d => d.id === id);
       if (!doc) return;
       document.getElementById("edit-doc-id").value = doc.id;
       document.getElementById("edit-doc-name").value = doc.name;
@@ -492,36 +471,48 @@
       const role = document.getElementById("edit-doc-role").value;
       const max_shifts = parseInt(document.getElementById("edit-doc-max").value) || 6;
 
-      const { error } = await supabase.from('doctors').update({ name, role, max_shifts }).eq('id', id);
-      if (error) {
-        showToast("Błąd aktualizacji", "error");
-      } else {
-        showToast("Zaktualizowano dane lekarza");
+      const idx = state.doctors.findIndex(d => d.id === id);
+      if (idx !== -1) {
+        state.doctors[idx] = { id, name, role, max_shifts };
         closeEditModal();
-        await loadDoctors();
+        renderDoctorsAdminTable();
+        populateDoctorSelect();
+        await saveOnlineData();
+        showToast("Zaktualizowano dane lekarza");
       }
     }
 
     async function deleteDoctor(id) {
-      if (!confirm("Czy na pewno chcesz usunąć tego lekarza? Spowoduje to usunięcie jego deklaracji i obsady.")) return;
-      const { error } = await supabase.from('doctors').delete().eq('id', id);
-      if (error) {
-        showToast("Błąd usuwania lekarza", "error");
-      } else {
-        showToast("Lekarz usunięty");
-        await loadDoctors();
-      }
+      if (!confirm("Czy na pewno usunąć tego lekarza? Spowoduje to usunięcie jego deklaracji.")) return;
+      state.doctors = state.doctors.filter(d => d.id !== id);
+      renderDoctorsAdminTable();
+      populateDoctorSelect();
+      await saveOnlineData();
+      showToast("Lekarz usunięty");
     }
 
-    // ==========================================
-    // DEKLARACJE LEKARZY (KALENDARZ)
-    // ==========================================
+    // LEKARZ & KALENDARZ
+    function populateDoctorSelect() {
+      const select = document.getElementById("doctor-select");
+      select.innerHTML = '<option value="">-- Wybierz lekarza z listy --</option>';
+      state.doctors.forEach(doc => {
+        const opt = document.createElement("option");
+        opt.value = doc.id;
+        opt.innerText = `${doc.name} (${doc.role === 'specialist' ? 'Specjalista' : 'Rezydent'})`;
+        select.appendChild(opt);
+      });
+      if (selectedDoctorId) select.value = selectedDoctorId;
+    }
+
+    function handleDoctorChange() {
+      selectedDoctorId = document.getElementById("doctor-select").value;
+      renderDoctorCalendar();
+    }
+
     function changeMonth(delta) {
       currentDate.setMonth(currentDate.getMonth() + delta);
       updateMonthLabel();
       renderDoctorCalendar();
-      loadDoctorAvailabilities();
-      loadShiftsForMonth();
       if (!document.getElementById('view-schedule').classList.contains('hidden')) {
         renderScheduleTable();
       }
@@ -538,22 +529,6 @@
       const numDays = new Date(year, month + 1, 0).getDate();
       const firstDayIndex = (new Date(year, month, 1).getDay() + 6) % 7;
       return { numDays, firstDayIndex, year, month };
-    }
-
-    async function loadDoctorAvailabilities() {
-      selectedDoctorId = document.getElementById("doctor-select").value;
-      if (!selectedDoctorId || !supabase) {
-        renderDoctorCalendar();
-        return;
-      }
-
-      const { data, error } = await supabase.from('availabilities').select('*').eq('doctor_id', selectedDoctorId);
-      if (!error && data) {
-        data.forEach(item => {
-          availabilities[`${item.doctor_id}_${item.date}`] = item.status;
-        });
-      }
-      renderDoctorCalendar();
     }
 
     function renderDoctorCalendar() {
@@ -573,7 +548,7 @@
         const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
 
         const card = document.createElement("div");
-        const status = (selectedDoctorId && availabilities[`${selectedDoctorId}_${dateStr}`]) || 'none';
+        const status = (selectedDoctorId && state.availabilities[`${selectedDoctorId}_${dateStr}`]) || 'none';
 
         let bgClass = "bg-white border-slate-200 hover:border-slate-400";
         let statusBadge = `<span class="text-xs text-slate-400 italic">Brak wpisu</span>`;
@@ -611,39 +586,15 @@
       }
 
       const cycle = { 'none': 'available', 'available': 'preferred', 'preferred': 'unavailable', 'unavailable': 'available' };
-      const current = availabilities[`${selectedDoctorId}_${dateStr}`] || 'none';
+      const current = state.availabilities[`${selectedDoctorId}_${dateStr}`] || 'none';
       const nextStatus = cycle[current];
 
-      availabilities[`${selectedDoctorId}_${dateStr}`] = nextStatus;
+      state.availabilities[`${selectedDoctorId}_${dateStr}`] = nextStatus;
       renderDoctorCalendar();
-
-      if (supabase) {
-        const { error } = await supabase.from('availabilities').upsert({ doctor_id: selectedDoctorId, date: dateStr, status: nextStatus }, { onConflict: 'doctor_id,date' });
-        if (error) {
-          showToast("Błąd synchronizacji", "error");
-        } else {
-          showToast(`Zapisano dyspozycję`);
-        }
-      }
+      await saveOnlineData();
     }
 
-    // ==========================================
-    // GRAFIK I AUTOMATYCZNY PLANISTA
-    // ==========================================
-    async function loadShiftsForMonth() {
-      if (!supabase) return;
-      const { year, month } = getDaysInCurrentMonth();
-      const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
-      const endDate = `${year}-${String(month + 1).padStart(2, '0')}-31`;
-
-      const { data, error } = await supabase.from('shifts').select('*').gte('date', startDate).lte('date', endDate);
-      if (!error && data) {
-        data.forEach(s => {
-          shifts[s.date] = { doctor1_id: s.doctor1_id, doctor2_id: s.doctor2_id, doctor3_id: s.doctor3_id };
-        });
-      }
-    }
-
+    // GRAFIK ODDZIAŁU
     function renderScheduleTable() {
       const tbody = document.getElementById("schedule-table-body");
       tbody.innerHTML = "";
@@ -654,11 +605,11 @@
         const dayOfWeek = new Date(year, month, day).getDay();
         const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
 
-        const currentShift = shifts[dateStr] || { doctor1_id: null, doctor2_id: null, doctor3_id: null };
+        const currentShift = state.shifts[dateStr] || { doctor1_id: null, doctor2_id: null, doctor3_id: null };
 
-        const d1 = doctors.find(d => d.id === currentShift.doctor1_id);
-        const d2 = doctors.find(d => d.id === currentShift.doctor2_id);
-        const d3 = doctors.find(d => d.id === currentShift.doctor3_id);
+        const d1 = state.doctors.find(d => d.id === currentShift.doctor1_id);
+        const d2 = state.doctors.find(d => d.id === currentShift.doctor2_id);
+        const d3 = state.doctors.find(d => d.id === currentShift.doctor3_id);
 
         const hasSpecialist = [d1, d2, d3].some(d => d && d.role === 'specialist');
         const isComplete = d1 && d2 && d3;
@@ -691,7 +642,7 @@
 
     function buildDoctorDropdown(dateStr, slotIndex, currentId) {
       let options = `<option value="">-- Wolny wakat --</option>`;
-      doctors.forEach(doc => {
+      state.doctors.forEach(doc => {
         const isSel = doc.id === currentId ? 'selected' : '';
         const roleTag = doc.role === 'specialist' ? '★ Spec' : 'Rez';
         options += `<option value="${doc.id}" ${isSel}>${doc.name} (${roleTag})</option>`;
@@ -706,23 +657,17 @@
     }
 
     function updateShiftSlot(dateStr, slotIndex, docId) {
-      if (!shifts[dateStr]) {
-        shifts[dateStr] = { doctor1_id: null, doctor2_id: null, doctor3_id: null };
+      if (!state.shifts[dateStr]) {
+        state.shifts[dateStr] = { doctor1_id: null, doctor2_id: null, doctor3_id: null };
       }
-      shifts[dateStr][`doctor${slotIndex}_id`] = docId || null;
+      state.shifts[dateStr][`doctor${slotIndex}_id`] = docId || null;
       renderScheduleTable();
     }
 
-    async function generateAutomaticSchedule() {
-      const { data: allAvail } = await supabase.from('availabilities').select('*');
-      const availMap = {};
-      (allAvail || []).forEach(a => {
-        availMap[`${a.doctor_id}_${a.date}`] = a.status;
-      });
-
+    function generateAutomaticSchedule() {
       const { numDays, year, month } = getDaysInCurrentMonth();
-      const specialists = doctors.filter(d => d.role === 'specialist');
-      const allDocs = [...doctors];
+      const specialists = state.doctors.filter(d => d.role === 'specialist');
+      const allDocs = [...state.doctors];
 
       if (specialists.length === 0) {
         showToast("Musisz dodać przynajmniej jednego specjalistę w Panelu Admina!", "error");
@@ -730,7 +675,7 @@
       }
 
       const shiftCounts = {};
-      doctors.forEach(d => { shiftCounts[d.id] = 0; });
+      state.doctors.forEach(d => { shiftCounts[d.id] = 0; });
       const newShifts = {};
 
       for (let day = 1; day <= numDays; day++) {
@@ -742,7 +687,7 @@
 
         const getCandidateScore = (doc) => {
           if (prevAssigned.includes(doc.id)) return -9999; // Odpoczynek 24h
-          const pref = availMap[`${doc.id}_${dateStr}`] || 'available';
+          const pref = state.availabilities[`${doc.id}_${dateStr}`] || 'available';
           if (pref === 'unavailable') return -9999;
 
           let score = 100 - (shiftCounts[doc.id] * 12);
@@ -782,26 +727,9 @@
         };
       }
 
-      shifts = newShifts;
+      state.shifts = newShifts;
       renderScheduleTable();
-      showToast("Grafik wygenerowany! Pamiętaj, aby go zapisać.");
-    }
-
-    async function saveScheduleToSupabase() {
-      if (!supabase) return;
-      const records = Object.keys(shifts).map(date => ({
-        date: date,
-        doctor1_id: shifts[date].doctor1_id,
-        doctor2_id: shifts[date].doctor2_id,
-        doctor3_id: shifts[date].doctor3_id
-      }));
-
-      const { error } = await supabase.from('shifts').upsert(records, { onConflict: 'date' });
-      if (error) {
-        showToast("Błąd zapisu harmonogramu", "error");
-      } else {
-        showToast("Harmonogram pomyślnie zapisany w bazie!");
-      }
+      showToast("Wygenerowano grafik! Kliknij 'Zapisz grafik', aby zachować.");
     }
 
     function renderDoctorStats() {
@@ -809,15 +737,15 @@
       statsDiv.innerHTML = "";
 
       const counts = {};
-      doctors.forEach(d => counts[d.id] = 0);
+      state.doctors.forEach(d => counts[d.id] = 0);
 
-      Object.values(shifts).forEach(s => {
+      Object.values(state.shifts).forEach(s => {
         if (s.doctor1_id && counts[s.doctor1_id] !== undefined) counts[s.doctor1_id]++;
         if (s.doctor2_id && counts[s.doctor2_id] !== undefined) counts[s.doctor2_id]++;
         if (s.doctor3_id && counts[s.doctor3_id] !== undefined) counts[s.doctor3_id]++;
       });
 
-      doctors.forEach(doc => {
+      state.doctors.forEach(doc => {
         const count = counts[doc.id] || 0;
         const max = doc.max_shifts || 6;
         const card = document.createElement("div");
