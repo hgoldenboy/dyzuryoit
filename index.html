@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dyżury OIT - System Planowania</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    @media print {
+      .no-print { display: none !important; }
+      body { background: white !important; font-size: 11px; }
+      .print-border { border: 1px solid #cbd5e1 !important; }
+    }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col">
+
+  <!-- Pasek nawigacji -->
+  <header class="bg-blue-900 text-white shadow-md no-print sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-4">
+      <div class="flex items-center space-x-3">
+        <i class="fa-solid fa-hospital-user text-2xl text-blue-300"></i>
+        <div>
+          <h1 class="font-bold text-lg leading-tight">OIT Grafik Dyżurów</h1>
+          <p class="text-xs text-blue-200">System planowania obsady dyżurnej</p>
+        </div>
+      </div>
+      
+      <nav class="flex space-x-1 bg-blue-950 p-1 rounded-lg text-sm">
+        <button id="nav-doctor" onclick="switchView('doctor')" class="px-3 py-1.5 rounded-md font-medium bg-blue-600 text-white transition">
+          <i class="fa-regular fa-calendar-check mr-1"></i> Moja Dyspozycja
+        </button>
+        <button id="nav-schedule" onclick="switchView('schedule')" class="px-3 py-1.5 rounded-md font-medium text-blue-200 hover:text-white transition">
+          <i class="fa-solid fa-calendar-days mr-1"></i> Grafik Oddziału
+        </button>
+        <button id="nav-admin" onclick="openAdminAuth()" class="px-3 py-1.5 rounded-md font-medium text-blue-200 hover:text-white transition">
+          <i class="fa-solid fa-lock mr-1"></i> Panel Admina
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Pasek powiadomień Toast -->
+  <div id="toast" class="fixed bottom-5 right-5 z-50 transform transition-all duration-300 translate-y-20 opacity-0 bg-slate-900 text-white px-4 py-3 rounded-lg shadow-xl flex items-center space-x-3">
+    <i id="toast-icon" class="fa-solid fa-circle-check text-emerald-400"></i>
+    <span id="toast-msg" class="text-sm">Komunikat</span>
+  </div>
+
+  <main class="max-w-7xl mx-auto px-4 py-6 flex-grow w-full">
+
+    <!-- ==================== WIDOK 1: DEKLARACJA LEKARZA ==================== -->
+    <section id="view-doctor" class="space-y-6">
+      <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-wrap justify-between items-center gap-4">
+        <div class="w-full md:w-auto">
+          <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Wybierz swoje nazwisko</label>
+          <select id="doctor-select" onchange="loadDoctorAvailabilities()" class="w-full md:w-80 bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-800 font-semibold focus:ring-2 focus:ring-blue-500 outline-none">
+            <option value="">-- Wybierz lekarza z listy --</option>
+          </select>
+        </div>
+
+        <div class="flex items-center space-x-2">
+          <button onclick="changeMonth(-1)" class="p-2 border rounded-lg hover:bg-slate-50 text-slate-600"><i class="fa-solid fa-chevron-left"></i></button>
+          <span id="calendar-month-label" class="font-bold text-base px-3 text-slate-700 min-w-[140px] text-center">Listopad 2026</span>
+          <button onclick="changeMonth(1)" class="p-2 border rounded-lg hover:bg-slate-50 text-slate-600"><i class="fa-solid fa-chevron-right"></i></button>
+        </div>
+
+        <div class="flex flex-wrap gap-2 text-xs">
+          <span class="inline-flex items-center px-2.5 py-1 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 mr-1.5"></span> Preferowany (Chcę)
+          </span>
+          <span class="inline-flex items-center px-2.5 py-1 rounded bg-blue-50 text-blue-700 border border-blue-200">
+            <span class="w-2 h-2 rounded-full bg-blue-500 mr-1.5"></span> Dostępny (Mogę)
+          </span>
+          <span class="inline-flex items-center px-2.5 py-1 rounded bg-rose-50 text-rose-700 border border-rose-200">
+            <span class="w-2 h-2 rounded-full bg-rose-500 mr-1.5"></span> Niedostępny / Urlop
+          </span>
+        </div>
+      </div>
+
+      <div class="bg-blue-50 border-l-4 border-blue-600 p-4 rounded-r-lg text-sm text-blue-900 flex items-start space-x-3">
+        <i class="fa-solid fa-info-circle text-blue-600 text-lg mt-0.5"></i>
+        <div>
+          <p class="font-semibold">Klikaj w kafelki kalendarza, aby ustawić swój status.</p>
+          <p class="text-xs text-blue-700 mt-0.5">Zmiany zapisują się natychmiast w centralnej bazie danych.</p>
+        </div>
+      </div>
+
+      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+        <div class="grid grid-cols-7 gap-2 mb-2 text-center text-xs font-semibold text-slate-400 uppercase">
+          <div>Pon</div><div>Wt</div><div>Śr</div><div>Czw</div><div>Pt</div><div class="text-indigo-600">Sob</div><div class="text-rose-600">Niedz</div>
+        </div>
+        <div id="doctor-calendar-grid" class="grid grid-cols-7 gap-2"></div>
+      </div>
+    </section>
+
+    <!-- ==================== WIDOK 2: GRAFIK ODDZIAŁU ==================== -->
+    <section id="view-schedule" class="space-y-6 hidden">
+      <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-wrap justify-between items-center gap-4 no-print">
+        <div>
+          <h2 class="text-lg font-bold text-slate-800">Miesięczny Harmonogram Dyżurów OIT</h2>
+          <p class="text-xs text-slate-500">Wymóg: 3 dyżurnych na dobę, w tym minimum 1 specjalista.</p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <button onclick="generateAutomaticSchedule()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-semibold text-sm flex items-center space-x-2 shadow-sm transition">
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
+            <span>Ułóż automatycznie</span>
+          </button>
+          <button onclick="saveScheduleToSupabase()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold text-sm flex items-center space-x-2 shadow-sm transition">
+            <i class="fa-solid fa-floppy-disk"></i>
+            <span>Zapisz grafik</span>
+          </button>
+          <button onclick="window.print()" class="bg-slate-700 hover:bg-slate-800 text-white px-3 py-2 rounded-lg font-semibold text-sm transition">
+            <i class="fa-solid fa-print"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Tabela Dyżurów -->
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm border-collapse">
+            <thead>
+              <tr class="bg-slate-100 text-slate-600 uppercase text-xs border-b border-slate-200">
+                <th class="p-3 w-32">Doba</th>
+                <th class="p-3">Dyżurny 1 (Specjalista)</th>
+                <th class="p-3">Dyżurny 2</th>
+                <th class="p-3">Dyżurny 3</th>
+                <th class="p-3 w-32 text-center no-print">Status Reguł</th>
+              </tr>
+            </thead>
+            <tbody id="schedule-table-body" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+        <h3 class="font-bold text-sm text-slate-700 uppercase tracking-wider mb-3">Statystyki dyżurów lekarzy</h3>
+        <div id="stats-container" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4"></div>
+      </div>
+    </section>
+
+    <!-- ==================== WIDOK 3: PANEL ADMINA ==================== -->
+    <section id="view-admin" class="space-y-6 hidden">
+      <!-- Pasek stanu administratora -->
+      <div class="bg-slate-900 text-white p-5 rounded-xl shadow-sm flex flex-wrap justify-between items-center gap-4">
+        <div>
+          <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-emerald-500/20 text-emerald-300 mb-1">
+            <i class="fa-solid fa-shield-halved mr-1"></i> Sesja Autoryzowana
+          </span>
+          <h2 class="text-xl font-bold">Zarządzanie Zespołem Lekarskim i Konfiguracją</h2>
+        </div>
+        <div class="flex items-center space-x-2">
+          <button onclick="promptChangePin()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-700 transition">
+            <i class="fa-solid fa-key mr-1"></i> Zmień PIN
+          </button>
+          <button onclick="logoutAdmin()" class="bg-rose-900/40 hover:bg-rose-800/60 text-rose-200 px-3 py-1.5 rounded-lg text-xs font-medium border border-rose-800 transition">
+            <i class="fa-solid fa-arrow-right-from-bracket mr-1"></i> Zablokuj panel
+          </button>
+        </div>
+      </div>
+
+      <!-- Formularz dodawania lekarza -->
+      <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+        <h3 class="text-base font-bold text-slate-800 mb-3 flex items-center">
+          <i class="fa-solid fa-user-plus text-blue-600 mr-2"></i> Dodaj nowego lekarza
+        </h3>
+        <form id="add-doctor-form" onsubmit="handleAddDoctor(event)" class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+          <div class="sm:col-span-5">
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Tytuł, Imię i Nazwisko</label>
+            <input type="text" id="new-doc-name" required placeholder="np. dr n. med. Jan Kowalski" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+          </div>
+          <div class="sm:col-span-3">
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Kwalifikacja na OIT</label>
+            <select id="new-doc-role" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+              <option value="specialist">Specjalista Anestezjologii i IT</option>
+              <option value="resident">Lekarz Rezydent</option>
+            </select>
+          </div>
+          <div class="sm:col-span-2">
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Maks. dyżurów</label>
+            <input type="number" id="new-doc-max" value="6" min="1" max="15" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+          </div>
+          <div class="sm:col-span-2">
+            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg text-sm transition">
+              <i class="fa-solid fa-plus mr-1"></i> Zapisz
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Tabela Lekarzy -->
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+          <div>
+            <h3 class="font-bold text-slate-800">Personel lekarski oddziału</h3>
+            <p class="text-xs text-slate-500">Kliknij „Edytuj”, aby skorygować dane lub zmienić status rezydent/specjalista.</p>
+          </div>
+          <span id="doctor-count-badge" class="bg-blue-100 text-blue-800 text-xs px-3 py-1 rounded-full font-bold">0 lekarzy</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm">
+            <thead class="bg-slate-100 text-slate-600 text-xs uppercase">
+              <tr>
+                <th class="p-3">Lekarz</th>
+                <th class="p-3">Status OIT</th>
+                <th class="p-3 text-center">Limit dyżurów</th>
+                <th class="p-3 text-right">Akcje</th>
+              </tr>
+            </thead>
+            <tbody id="doctors-table-body" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ==================== MODAL: EDYCJA LEKARZA ==================== -->
+  <div id="modal-edit-doctor" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 animate-scale-up">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="font-bold text-slate-800 text-base flex items-center">
+          <i class="fa-solid fa-user-pen text-blue-600 mr-2"></i> Edycja danych lekarza
+        </h3>
+        <button onclick="closeEditModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+      <form id="edit-doctor-form" onsubmit="handleSaveEditDoctor(event)" class="space-y-4">
+        <input type="hidden" id="edit-doc-id">
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Tytuł, Imię i Nazwisko</label>
+          <input type="text" id="edit-doc-name" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Rola na OIT</label>
+          <select id="edit-doc-role" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+            <option value="specialist">Specjalista Anestezjologii i IT</option>
+            <option value="resident">Lekarz Rezydent</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Docelowy limit dyżurów w miesiącu</label>
+          <input type="number" id="edit-doc-max" min="1" max="15" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+        </div>
+        <div class="flex justify-end space-x-2 pt-2">
+          <button type="button" onclick="closeEditModal()" class="px-4 py-2 border rounded-lg text-sm text-slate-600 hover:bg-slate-50 font-medium">Anuluj</button>
+          <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition">Zapisz zmiany</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: AUTORYZACJA PIN ADMINA ==================== -->
+  <div id="modal-pin-auth" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6 text-center">
+      <div class="w-12 h-12 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center mx-auto mb-3">
+        <i class="fa-solid fa-lock text-xl"></i>
+      </div>
+      <h3 class="font-bold text-slate-800 text-lg mb-1">Dostęp do Panelu Koordynatora</h3>
+      <p class="text-xs text-slate-500 mb-4">Podaj kod PIN administratora oddziału (Domyślny: 1234)</p>
+      
+      <form onsubmit="handleVerifyPin(event)" class="space-y-4">
+        <input type="password" id="admin-pin-input" maxlength="8" placeholder="••••" autofocus required class="text-center tracking-widest text-2xl font-bold w-full border border-slate-300 rounded-lg py-2 focus:ring-2 focus:ring-blue-500 outline-none">
+        <div class="flex space-x-2">
+          <button type="button" onclick="closePinModal()" class="w-1/2 py-2 border rounded-lg text-sm text-slate-600 hover:bg-slate-50 font-medium">Anuluj</button>
+          <button type="submit" class="w-1/2 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition">Odblokuj</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // ========================================================
+    // 1. KONFIGURACJA SUPABASE (WSTAW SWOJE WŁASNE DANE Z BAZY)
+    // ========================================================
+    const SUPABASE_URL = "TUTAJ_WSTAW_SWOJ_SUPABASE_URL";
+    const SUPABASE_ANON_KEY = "TUTAJ_WSTAW_SWOJ_SUPABASE_ANON_KEY";
+
+    let supabase = null;
+    if (SUPABASE_URL.startsWith("http")) {
+      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    }
+
+    // Stan globalny aplikacji
+    let currentDate = new Date();
+    currentDate.setDate(1);
+    let doctors = [];
+    let availabilities = {};
+    let shifts = {};
+    let selectedDoctorId = "";
+    let isAdminAuthenticated = false;
+
+    // Inicjalizacja
+    document.addEventListener("DOMContentLoaded", async () => {
+      if (!supabase) {
+        showToast("Podmień SUPABASE_URL i ANON_KEY w kodzie!", "error");
+      }
+      await loadDoctors();
+      updateMonthLabel();
+      renderDoctorCalendar();
+      await loadShiftsForMonth();
+    });
+
+    // Powiadomienia toast
+    function showToast(message, type = "success") {
+      const toast = document.getElementById("toast");
+      const msg = document.getElementById("toast-msg");
+      const icon = document.getElementById("toast-icon");
+      
+      msg.textContent = message;
+      if (type === "error") {
+        icon.className = "fa-solid fa-triangle-exclamation text-rose-400";
+      } else {
+        icon.className = "fa-solid fa-circle-check text-emerald-400";
+      }
+      
+      toast.classList.remove("translate-y-20", "opacity-0");
+      setTimeout(() => {
+        toast.classList.add("translate-y-20", "opacity-0");
+      }, 3500);
+    }
+
+    // Nawigacja
+    function switchView(viewName) {
+      ['doctor', 'schedule', 'admin'].forEach(v => {
+        document.getElementById(`view-${v}`).classList.add('hidden');
+        const btn = document.getElementById(`nav-${v}`);
+        btn.className = "px-3 py-1.5 rounded-md font-medium text-blue-200 hover:text-white transition";
+      });
+
+      document.getElementById(`view-${viewName}`).classList.remove('hidden');
+      const activeBtn = document.getElementById(`nav-${viewName}`);
+      activeBtn.className = "px-3 py-1.5 rounded-md font-medium bg-blue-600 text-white transition";
+
+      if (viewName === 'schedule') {
+        renderScheduleTable();
+      }
+    }
+
+    // ==========================================
+    // LOGIKA ADMINA & AUTORYZACJA PIN
+    // ==========================================
+    function openAdminAuth() {
+      if (isAdminAuthenticated) {
+        switchView('admin');
+      } else {
+        document.getElementById("admin-pin-input").value = "";
+        document.getElementById("modal-pin-auth").classList.remove("hidden");
+      }
+    }
+
+    function closePinModal() {
+      document.getElementById("modal-pin-auth").classList.add("hidden");
+    }
+
+    async function handleVerifyPin(e) {
+      e.preventDefault();
+      const enteredPin = document.getElementById("admin-pin-input").value;
+
+      let correctPin = "1234";
+      if (supabase) {
+        const { data } = await supabase.from('app_settings').select('value').eq('key', 'admin_pin').single();
+        if (data && data.value) correctPin = data.value;
+      }
+
+      if (enteredPin === correctPin) {
+        isAdminAuthenticated = true;
+        closePinModal();
+        switchView('admin');
+        showToast("Zalogowano jako Administrator");
+      } else {
+        showToast("Nieprawidłowy kod PIN!", "error");
+      }
+    }
+
+    function logoutAdmin() {
+      isAdminAuthenticated = false;
+      switchView('doctor');
+      showToast("Wylogowano z Panelu Administratora");
+    }
+
+    async function promptChangePin() {
+      const newPin = prompt("Podaj nowy, min. 4-cyfrowy kod PIN administratora:");
+      if (!newPin || newPin.length < 4) {
+        showToast("PIN musi mieć co najmniej 4 znaki", "error");
+        return;
+      }
+
+      if (supabase) {
+        const { error } = await supabase.from('app_settings').upsert({ key: 'admin_pin', value: newPin });
+        if (!error) {
+          showToast("Zmieniono PIN administratora");
+        } else {
+          showToast("Błąd zapisu PINu w bazie", "error");
+        }
+      }
+    }
+
+    // ==========================================
+    // ZARZĄDZANIE LEKARZAMI (CRUD)
+    // ==========================================
+    async function loadDoctors() {
+      if (!supabase) return;
+      const { data, error } = await supabase.from('doctors').select('*').order('name');
+      if (error) {
+        console.error(error);
+        return;
+      }
+      doctors = data || [];
+      populateDoctorSelect();
+      renderDoctorsAdminTable();
+    }
+
+    function populateDoctorSelect() {
+      const select = document.getElementById("doctor-select");
+      select.innerHTML = '<option value="">-- Wybierz lekarza z listy --</option>';
+      doctors.forEach(doc => {
+        const opt = document.createElement("option");
+        opt.value = doc.id;
+        opt.innerText = `${doc.name} (${doc.role === 'specialist' ? 'Specjalista' : 'Rezydent'})`;
+        select.appendChild(opt);
+      });
+      if (selectedDoctorId) select.value = selectedDoctorId;
+    }
+
+    function renderDoctorsAdminTable() {
+      const tbody = document.getElementById("doctors-table-body");
+      document.getElementById("doctor-count-badge").innerText = `${doctors.length} lekarzy`;
+      tbody.innerHTML = "";
+
+      doctors.forEach(doc => {
+        const tr = document.createElement("tr");
+        tr.className = "hover:bg-slate-50 transition";
+        tr.innerHTML = `
+          <td class="p-3 font-semibold text-slate-800">${doc.name}</td>
+          <td class="p-3">
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-semibold ${doc.role === 'specialist' ? 'bg-blue-100 text-blue-800' : 'bg-emerald-100 text-emerald-800'}">
+              ${doc.role === 'specialist' ? '★ Specjalista OIT' : 'Rezydent'}
+            </span>
+          </td>
+          <td class="p-3 text-center font-bold text-slate-600">${doc.max_shifts || 6}</td>
+          <td class="p-3 text-right space-x-2">
+            <button onclick="openEditDoctorModal('${doc.id}')" class="text-blue-600 hover:text-blue-800 text-xs font-medium bg-blue-50 px-2.5 py-1 rounded">
+              <i class="fa-solid fa-pen-to-square mr-1"></i> Edytuj
+            </button>
+            <button onclick="deleteDoctor('${doc.id}')" class="text-rose-600 hover:text-rose-800 text-xs font-medium bg-rose-50 px-2.5 py-1 rounded">
+              <i class="fa-solid fa-trash-can mr-1"></i> Usuń
+            </button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function handleAddDoctor(e) {
+      e.preventDefault();
+      const name = document.getElementById("new-doc-name").value.trim();
+      const role = document.getElementById("new-doc-role").value;
+      const max_shifts = parseInt(document.getElementById("new-doc-max").value) || 6;
+
+      if (!name) return;
+      const { error } = await supabase.from('doctors').insert([{ name, role, max_shifts }]);
+      if (error) {
+        showToast("Błąd zapisu lekarza", "error");
+      } else {
+        showToast("Dodano nowego lekarza");
+        document.getElementById("new-doc-name").value = "";
+        await loadDoctors();
+      }
+    }
+
+    function openEditDoctorModal(id) {
+      const doc = doctors.find(d => d.id === id);
+      if (!doc) return;
+      document.getElementById("edit-doc-id").value = doc.id;
+      document.getElementById("edit-doc-name").value = doc.name;
+      document.getElementById("edit-doc-role").value = doc.role;
+      document.getElementById("edit-doc-max").value = doc.max_shifts || 6;
+      document.getElementById("modal-edit-doctor").classList.remove("hidden");
+    }
+
+    function closeEditModal() {
+      document.getElementById("modal-edit-doctor").classList.add("hidden");
+    }
+
+    async function handleSaveEditDoctor(e) {
+      e.preventDefault();
+      const id = document.getElementById("edit-doc-id").value;
+      const name = document.getElementById("edit-doc-name").value.trim();
+      const role = document.getElementById("edit-doc-role").value;
+      const max_shifts = parseInt(document.getElementById("edit-doc-max").value) || 6;
+
+      const { error } = await supabase.from('doctors').update({ name, role, max_shifts }).eq('id', id);
+      if (error) {
+        showToast("Błąd aktualizacji", "error");
+      } else {
+        showToast("Zaktualizowano dane lekarza");
+        closeEditModal();
+        await loadDoctors();
+      }
+    }
+
+    async function deleteDoctor(id) {
+      if (!confirm("Czy na pewno chcesz usunąć tego lekarza? Spowoduje to usunięcie jego deklaracji i obsady.")) return;
+      const { error } = await supabase.from('doctors').delete().eq('id', id);
+      if (error) {
+        showToast("Błąd usuwania lekarza", "error");
+      } else {
+        showToast("Lekarz usunięty");
+        await loadDoctors();
+      }
+    }
+
+    // ==========================================
+    // DEKLARACJE LEKARZY (KALENDARZ)
+    // ==========================================
+    function changeMonth(delta) {
+      currentDate.setMonth(currentDate.getMonth() + delta);
+      updateMonthLabel();
+      renderDoctorCalendar();
+      loadDoctorAvailabilities();
+      loadShiftsForMonth();
+      if (!document.getElementById('view-schedule').classList.contains('hidden')) {
+        renderScheduleTable();
+      }
+    }
+
+    function updateMonthLabel() {
+      const months = ["Styczeń", "Luty", "Marzec", "Kwiecień", "Maj", "Czerwiec", "Lipiec", "Sierpień", "Wrzesień", "Październik", "Listopad", "Grudzień"];
+      document.getElementById("calendar-month-label").innerText = `${months[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
+    }
+
+    function getDaysInCurrentMonth() {
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth();
+      const numDays = new Date(year, month + 1, 0).getDate();
+      const firstDayIndex = (new Date(year, month, 1).getDay() + 6) % 7;
+      return { numDays, firstDayIndex, year, month };
+    }
+
+    async function loadDoctorAvailabilities() {
+      selectedDoctorId = document.getElementById("doctor-select").value;
+      if (!selectedDoctorId || !supabase) {
+        renderDoctorCalendar();
+        return;
+      }
+
+      const { data, error } = await supabase.from('availabilities').select('*').eq('doctor_id', selectedDoctorId);
+      if (!error && data) {
+        data.forEach(item => {
+          availabilities[`${item.doctor_id}_${item.date}`] = item.status;
+        });
+      }
+      renderDoctorCalendar();
+    }
+
+    function renderDoctorCalendar() {
+      const grid = document.getElementById("doctor-calendar-grid");
+      grid.innerHTML = "";
+      const { numDays, firstDayIndex, year, month } = getDaysInCurrentMonth();
+
+      for (let i = 0; i < firstDayIndex; i++) {
+        const empty = document.createElement("div");
+        empty.className = "h-24 bg-slate-50 border border-slate-100 rounded-lg opacity-40";
+        grid.appendChild(empty);
+      }
+
+      for (let day = 1; day <= numDays; day++) {
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const dayOfWeek = new Date(year, month, day).getDay();
+        const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+
+        const card = document.createElement("div");
+        const status = (selectedDoctorId && availabilities[`${selectedDoctorId}_${dateStr}`]) || 'none';
+
+        let bgClass = "bg-white border-slate-200 hover:border-slate-400";
+        let statusBadge = `<span class="text-xs text-slate-400 italic">Brak wpisu</span>`;
+
+        if (status === 'preferred') {
+          bgClass = "bg-emerald-50 border-emerald-400 text-emerald-900";
+          statusBadge = `<span class="text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">Preferowany</span>`;
+        } else if (status === 'available') {
+          bgClass = "bg-blue-50 border-blue-400 text-blue-900";
+          statusBadge = `<span class="text-xs font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded">Dostępny</span>`;
+        } else if (status === 'unavailable') {
+          bgClass = "bg-rose-50 border-rose-300 text-rose-900";
+          statusBadge = `<span class="text-xs font-bold text-rose-700 bg-rose-100 px-2 py-0.5 rounded">Niedostępny</span>`;
+        }
+
+        card.className = `h-24 border rounded-lg p-2.5 flex flex-col justify-between cursor-pointer transition select-none ${bgClass}`;
+        card.innerHTML = `
+          <div class="flex justify-between items-center">
+            <span class="font-bold text-sm ${isWeekend ? 'text-indigo-600' : 'text-slate-700'}">${day}</span>
+            ${isWeekend ? '<span class="text-[10px] uppercase font-bold text-slate-400">Weekend</span>' : ''}
+          </div>
+          <div class="text-center">${statusBadge}</div>
+          <div class="text-[10px] text-slate-400 text-right">Kliknij, by zmienić</div>
+        `;
+
+        card.onclick = () => cycleAvailability(dateStr);
+        grid.appendChild(card);
+      }
+    }
+
+    async function cycleAvailability(dateStr) {
+      if (!selectedDoctorId) {
+        showToast("Najpierw wybierz swoje nazwisko z listy!", "error");
+        return;
+      }
+
+      const cycle = { 'none': 'available', 'available': 'preferred', 'preferred': 'unavailable', 'unavailable': 'available' };
+      const current = availabilities[`${selectedDoctorId}_${dateStr}`] || 'none';
+      const nextStatus = cycle[current];
+
+      availabilities[`${selectedDoctorId}_${dateStr}`] = nextStatus;
+      renderDoctorCalendar();
+
+      if (supabase) {
+        const { error } = await supabase.from('availabilities').upsert({ doctor_id: selectedDoctorId, date: dateStr, status: nextStatus }, { onConflict: 'doctor_id,date' });
+        if (error) {
+          showToast("Błąd synchronizacji", "error");
+        } else {
+          showToast(`Zapisano dyspozycję`);
+        }
+      }
+    }
+
+    // ==========================================
+    // GRAFIK I AUTOMATYCZNY PLANISTA
+    // ==========================================
+    async function loadShiftsForMonth() {
+      if (!supabase) return;
+      const { year, month } = getDaysInCurrentMonth();
+      const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+      const endDate = `${year}-${String(month + 1).padStart(2, '0')}-31`;
+
+      const { data, error } = await supabase.from('shifts').select('*').gte('date', startDate).lte('date', endDate);
+      if (!error && data) {
+        data.forEach(s => {
+          shifts[s.date] = { doctor1_id: s.doctor1_id, doctor2_id: s.doctor2_id, doctor3_id: s.doctor3_id };
+        });
+      }
+    }
+
+    function renderScheduleTable() {
+      const tbody = document.getElementById("schedule-table-body");
+      tbody.innerHTML = "";
+      const { numDays, year, month } = getDaysInCurrentMonth();
+
+      for (let day = 1; day <= numDays; day++) {
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const dayOfWeek = new Date(year, month, day).getDay();
+        const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+
+        const currentShift = shifts[dateStr] || { doctor1_id: null, doctor2_id: null, doctor3_id: null };
+
+        const d1 = doctors.find(d => d.id === currentShift.doctor1_id);
+        const d2 = doctors.find(d => d.id === currentShift.doctor2_id);
+        const d3 = doctors.find(d => d.id === currentShift.doctor3_id);
+
+        const hasSpecialist = [d1, d2, d3].some(d => d && d.role === 'specialist');
+        const isComplete = d1 && d2 && d3;
+
+        let statusHtml = `<span class="text-rose-500 font-bold text-xs"><i class="fa-solid fa-circle-exclamation"></i> Brak 3</span>`;
+        if (isComplete) {
+          if (hasSpecialist) {
+            statusHtml = `<span class="text-emerald-600 font-bold text-xs"><i class="fa-solid fa-check"></i> Zgodny (Spec+)</span>`;
+          } else {
+            statusHtml = `<span class="text-amber-500 font-bold text-xs"><i class="fa-solid fa-triangle-exclamation"></i> Brak Specjalisty!</span>`;
+          }
+        }
+
+        const tr = document.createElement("tr");
+        tr.className = isWeekend ? "bg-slate-50 print-border" : "hover:bg-slate-50 print-border";
+        tr.innerHTML = `
+          <td class="p-3 font-semibold ${isWeekend ? 'text-indigo-600' : 'text-slate-700'}">
+            ${day} (${['Nd','Pn','Wt','Śr','Cz','Pt','Sb'][dayOfWeek]})
+          </td>
+          <td class="p-2">${buildDoctorDropdown(dateStr, 1, currentShift.doctor1_id)}</td>
+          <td class="p-2">${buildDoctorDropdown(dateStr, 2, currentShift.doctor2_id)}</td>
+          <td class="p-2">${buildDoctorDropdown(dateStr, 3, currentShift.doctor3_id)}</td>
+          <td class="p-3 text-center no-print">${statusHtml}</td>
+        `;
+        tbody.appendChild(tr);
+      }
+
+      renderDoctorStats();
+    }
+
+    function buildDoctorDropdown(dateStr, slotIndex, currentId) {
+      let options = `<option value="">-- Wolny wakat --</option>`;
+      doctors.forEach(doc => {
+        const isSel = doc.id === currentId ? 'selected' : '';
+        const roleTag = doc.role === 'specialist' ? '★ Spec' : 'Rez';
+        options += `<option value="${doc.id}" ${isSel}>${doc.name} (${roleTag})</option>`;
+      });
+
+      return `
+        <select onchange="updateShiftSlot('${dateStr}', ${slotIndex}, this.value)" 
+          class="w-full text-xs bg-transparent border border-slate-200 rounded p-1.5 focus:bg-white focus:ring-1 focus:ring-blue-500">
+          ${options}
+        </select>
+      `;
+    }
+
+    function updateShiftSlot(dateStr, slotIndex, docId) {
+      if (!shifts[dateStr]) {
+        shifts[dateStr] = { doctor1_id: null, doctor2_id: null, doctor3_id: null };
+      }
+      shifts[dateStr][`doctor${slotIndex}_id`] = docId || null;
+      renderScheduleTable();
+    }
+
+    async function generateAutomaticSchedule() {
+      const { data: allAvail } = await supabase.from('availabilities').select('*');
+      const availMap = {};
+      (allAvail || []).forEach(a => {
+        availMap[`${a.doctor_id}_${a.date}`] = a.status;
+      });
+
+      const { numDays, year, month } = getDaysInCurrentMonth();
+      const specialists = doctors.filter(d => d.role === 'specialist');
+      const allDocs = [...doctors];
+
+      if (specialists.length === 0) {
+        showToast("Musisz dodać przynajmniej jednego specjalistę w Panelu Admina!", "error");
+        return;
+      }
+
+      const shiftCounts = {};
+      doctors.forEach(d => { shiftCounts[d.id] = 0; });
+      const newShifts = {};
+
+      for (let day = 1; day <= numDays; day++) {
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const prevDateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day - 1).padStart(2, '0')}`;
+        const prevAssigned = prevDateStr in newShifts 
+          ? [newShifts[prevDateStr].doctor1_id, newShifts[prevDateStr].doctor2_id, newShifts[prevDateStr].doctor3_id] 
+          : [];
+
+        const getCandidateScore = (doc) => {
+          if (prevAssigned.includes(doc.id)) return -9999; // Odpoczynek 24h
+          const pref = availMap[`${doc.id}_${dateStr}`] || 'available';
+          if (pref === 'unavailable') return -9999;
+
+          let score = 100 - (shiftCounts[doc.id] * 12);
+          if (pref === 'preferred') score += 50;
+          return score;
+        };
+
+        // 1. Zawsze dobierz minimum 1 Specjalistę na stanowisko dyżurnego 1
+        const sortedSpecs = [...specialists].sort((a, b) => getCandidateScore(b) - getCandidateScore(a));
+        const chosenSpec = sortedSpecs[0] && getCandidateScore(sortedSpecs[0]) > -5000 ? sortedSpecs[0] : null;
+
+        const assignedToday = [];
+        if (chosenSpec) {
+          assignedToday.push(chosenSpec.id);
+          shiftCounts[chosenSpec.id]++;
+        }
+
+        // 2. Dobierz pozostałych dwóch dyżurnych (rezydentów lub innych specjalistów)
+        for (let slot = assignedToday.length; slot < 3; slot++) {
+          const eligible = allDocs
+            .filter(d => !assignedToday.includes(d.id))
+            .sort((a, b) => getCandidateScore(b) - getCandidateScore(a));
+
+          const candidate = eligible[0] && getCandidateScore(eligible[0]) > -5000 ? eligible[0] : null;
+          if (candidate) {
+            assignedToday.push(candidate.id);
+            shiftCounts[candidate.id]++;
+          } else {
+            assignedToday.push(null);
+          }
+        }
+
+        newShifts[dateStr] = {
+          doctor1_id: assignedToday[0] || null,
+          doctor2_id: assignedToday[1] || null,
+          doctor3_id: assignedToday[2] || null
+        };
+      }
+
+      shifts = newShifts;
+      renderScheduleTable();
+      showToast("Grafik wygenerowany! Pamiętaj, aby go zapisać.");
+    }
+
+    async function saveScheduleToSupabase() {
+      if (!supabase) return;
+      const records = Object.keys(shifts).map(date => ({
+        date: date,
+        doctor1_id: shifts[date].doctor1_id,
+        doctor2_id: shifts[date].doctor2_id,
+        doctor3_id: shifts[date].doctor3_id
+      }));
+
+      const { error } = await supabase.from('shifts').upsert(records, { onConflict: 'date' });
+      if (error) {
+        showToast("Błąd zapisu harmonogramu", "error");
+      } else {
+        showToast("Harmonogram pomyślnie zapisany w bazie!");
+      }
+    }
+
+    function renderDoctorStats() {
+      const statsDiv = document.getElementById("stats-container");
+      statsDiv.innerHTML = "";
+
+      const counts = {};
+      doctors.forEach(d => counts[d.id] = 0);
+
+      Object.values(shifts).forEach(s => {
+        if (s.doctor1_id && counts[s.doctor1_id] !== undefined) counts[s.doctor1_id]++;
+        if (s.doctor2_id && counts[s.doctor2_id] !== undefined) counts[s.doctor2_id]++;
+        if (s.doctor3_id && counts[s.doctor3_id] !== undefined) counts[s.doctor3_id]++;
+      });
+
+      doctors.forEach(doc => {
+        const count = counts[doc.id] || 0;
+        const max = doc.max_shifts || 6;
+        const card = document.createElement("div");
+        card.className = "bg-slate-50 border border-slate-200 p-3 rounded-lg flex justify-between items-center";
+        card.innerHTML = `
+          <div>
+            <div class="text-xs font-semibold text-slate-700">${doc.name}</div>
+            <div class="text-[10px] text-slate-500">${doc.role === 'specialist' ? '★ Specjalista' : 'Rezydent'} (max: ${max})</div>
+          </div>
+          <span class="text-base font-bold ${count > max ? 'text-rose-600' : 'text-blue-700'}">${count}/${max}</span>
+        `;
+        statsDiv.appendChild(card);
+      });
+    }
+  </script>
+</body>
+</html>
