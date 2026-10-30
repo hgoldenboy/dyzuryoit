@@ -16,14 +16,13 @@
 </head>
 <body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col">
 
-  <!-- Pasek nawigacji -->
   <header class="bg-blue-900 text-white shadow-md no-print sticky top-0 z-30">
     <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-4">
       <div class="flex items-center space-x-3">
         <i class="fa-solid fa-hospital-user text-2xl text-blue-300"></i>
         <div>
           <h1 class="font-bold text-lg leading-tight">OIT Grafik Dyżurów</h1>
-          <p class="text-xs text-blue-200">System deklaracji i planowania obsady</p>
+          <p class="text-xs text-blue-200">System deklaracji i planowania obsady (4 dyżurnych)</p>
         </div>
       </div>
       
@@ -46,7 +45,6 @@
     </div>
   </header>
 
-  <!-- Pasek powiadomień Toast -->
   <div id="toast" class="fixed bottom-5 right-5 z-50 transform transition-all duration-300 translate-y-20 opacity-0 pointer-events-none bg-slate-900 text-white px-4 py-3 rounded-lg shadow-xl flex items-center space-x-3">
     <i id="toast-icon" class="fa-solid fa-circle-check text-emerald-400"></i>
     <span id="toast-msg" class="text-sm">Komunikat</span>
@@ -54,7 +52,7 @@
 
   <main class="max-w-7xl mx-auto px-4 py-6 flex-grow w-full">
 
-    <!-- ==================== WIDOK 1: DEKLARACJA LEKARZA ==================== -->
+    <!-- WIDOK 1: DEKLARACJA LEKARZA -->
     <section id="view-doctor" class="space-y-6">
       <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-wrap justify-between items-center gap-4">
         <div class="w-full md:w-auto">
@@ -86,8 +84,8 @@
       <div class="bg-blue-50 border-l-4 border-blue-600 p-4 rounded-r-lg text-sm text-blue-900 flex items-start space-x-3">
         <i class="fa-solid fa-info-circle text-blue-600 text-lg mt-0.5"></i>
         <div>
-          <p class="font-semibold">Klikaj w poszczególne kafelki dni, aby zmienić swój status.</p>
-          <p class="text-xs text-blue-700 mt-0.5">Dane zapisują się automatycznie na bieżąco.</p>
+          <p class="font-semibold">Klikaj w kafelki dni, aby zmienić dyspozycyjność.</p>
+          <p class="text-xs text-blue-700 mt-0.5">Wymóg oddziału: 4 dyżurnych na każdą dobę (min. 1 specjalista).</p>
         </div>
       </div>
 
@@ -99,16 +97,15 @@
       </div>
     </section>
 
-    <!-- ==================== WIDOK 2: GRAFIK ODDZIAŁU ==================== -->
+    <!-- WIDOK 2: GRAFIK ODDZIAŁU -->
     <section id="view-schedule" class="space-y-6" style="display: none;">
       <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-wrap justify-between items-center gap-4 no-print">
         <div>
           <h2 class="text-lg font-bold text-slate-800">Miesięczny Harmonogram Dyżurów OIT</h2>
-          <p class="text-xs text-slate-500">Wymóg: 3 dyżurnych na dobę, w tym minimum 1 specjalista.</p>
+          <p class="text-xs text-slate-500">Wymóg: dokładnie 4 dyżurnych na dobę, w tym minimum 1 specjalista.</p>
         </div>
 
         <div class="flex flex-wrap items-center gap-2">
-          <!-- Narzędzia koordynatora -->
           <div id="coordinator-controls" style="display: none;" class="flex items-center space-x-2">
             <button onclick="generateAutomaticSchedule()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-lg font-semibold text-xs flex items-center space-x-1.5 shadow-sm transition">
               <i class="fa-solid fa-wand-magic-sparkles"></i>
@@ -140,7 +137,8 @@
                 <th class="p-3">Dyżurny 1 (Specjalista)</th>
                 <th class="p-3">Dyżurny 2</th>
                 <th class="p-3">Dyżurny 3</th>
-                <th class="p-3 w-40 text-center no-print">Dyspozycyjność</th>
+                <th class="p-3">Dyżurny 4</th>
+                <th class="p-3 w-36 text-center no-print">Dyspozycyjność</th>
                 <th class="p-3 w-28 text-center no-print">Status</th>
               </tr>
             </thead>
@@ -155,7 +153,7 @@
       </div>
     </section>
 
-    <!-- ==================== WIDOK 3: PANEL ADMINA / KOORDYNATORA ==================== -->
+    <!-- WIDOK 3: PANEL ADMINA / KOORDYNATORA -->
     <section id="view-admin" class="space-y-6" style="display: none;">
       <div class="bg-slate-900 text-white p-5 rounded-xl shadow-sm flex flex-wrap justify-between items-center gap-4">
         <div>
@@ -228,8 +226,6 @@
 
   </main>
 
-  <!-- ==================== OKNA MODALNE (UKRYTE DOMYŚLNIE PRZEZ DISPLAY: NONE) ==================== -->
-
   <!-- MODAL: KTO JEST DOSTĘPNY -->
   <div id="modal-avail-details" style="display: none;" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
     <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-5">
@@ -296,7 +292,7 @@
   </div>
 
   <script>
-    const STORAGE_KEY = "oit_app_database_persistent_v2";
+    const STORAGE_KEY = "oit_app_database_persistent_v3";
 
     let state = {
       admin_pin: "1234",
@@ -306,7 +302,9 @@
         { id: "d3", name: "lek. Piotr Wiśniewski", role: "specialist", max_shifts: 5 },
         { id: "d4", name: "lek. Maria Zielińska", role: "resident", max_shifts: 7 },
         { id: "d5", name: "lek. Tomasz Kamiński", role: "resident", max_shifts: 6 },
-        { id: "d6", name: "lek. Ewa Lewandowska", role: "resident", max_shifts: 7 }
+        { id: "d6", name: "lek. Ewa Lewandowska", role: "resident", max_shifts: 7 },
+        { id: "d7", name: "lek. Krzysztof Wójcik", role: "resident", max_shifts: 6 },
+        { id: "d8", name: "lek. Magdalena Kozłowska", role: "resident", max_shifts: 7 }
       ],
       availabilities: {},
       shifts: {}
@@ -317,7 +315,6 @@
     let selectedDoctorId = "";
     let isCoordinator = false;
 
-    // START
     document.addEventListener("DOMContentLoaded", () => {
       loadFromLocalStorage();
       updateMonthLabel();
@@ -365,7 +362,6 @@
       if (notify) showToast("Dane zostały zapisane!");
     }
 
-    // NAWIGACJA ZAKŁADEK
     function switchView(viewName) {
       ['doctor', 'schedule', 'admin'].forEach(v => {
         const sec = document.getElementById(`view-${v}`);
@@ -384,7 +380,6 @@
       if (viewName === 'admin') renderDoctorsAdminTable();
     }
 
-    // LOGOWANIE KOORDYNATORA
     function openAdminAuth() {
       if (isCoordinator) {
         switchView('admin');
@@ -449,7 +444,6 @@
       }
     }
 
-    // KALENDARZ LEKARZA
     function populateDoctorSelect() {
       const select = document.getElementById("doctor-select");
       select.innerHTML = '<option value="">-- Wybierz lekarza z listy --</option>';
@@ -552,7 +546,7 @@
       saveAllData(false);
     }
 
-    // GRAFIK ODDZIAŁU
+    // GRAFIK ODDZIAŁU: 4 DYŻURNYCH
     function renderScheduleTable() {
       const tbody = document.getElementById("schedule-table-body");
       if (!tbody) return;
@@ -564,16 +558,22 @@
         const dayOfWeek = new Date(year, month, day).getDay();
         const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
 
-        const currentShift = state.shifts[dateStr] || { doctor1_id: null, doctor2_id: null, doctor3_id: null };
+        const currentShift = state.shifts[dateStr] || { 
+          doctor1_id: null, 
+          doctor2_id: null, 
+          doctor3_id: null, 
+          doctor4_id: null 
+        };
 
         const d1 = state.doctors.find(d => d.id === currentShift.doctor1_id);
         const d2 = state.doctors.find(d => d.id === currentShift.doctor2_id);
         const d3 = state.doctors.find(d => d.id === currentShift.doctor3_id);
+        const d4 = state.doctors.find(d => d.id === currentShift.doctor4_id);
 
-        const hasSpecialist = [d1, d2, d3].some(d => d && d.role === 'specialist');
-        const isComplete = d1 && d2 && d3;
+        const hasSpecialist = [d1, d2, d3, d4].some(d => d && d.role === 'specialist');
+        const isComplete = d1 && d2 && d3 && d4;
 
-        let statusHtml = `<span class="text-rose-500 font-bold text-xs"><i class="fa-solid fa-circle-exclamation"></i> Brak 3</span>`;
+        let statusHtml = `<span class="text-rose-500 font-bold text-xs"><i class="fa-solid fa-circle-exclamation"></i> Brak 4</span>`;
         if (isComplete) {
           if (hasSpecialist) {
             statusHtml = `<span class="text-emerald-600 font-bold text-xs"><i class="fa-solid fa-check"></i> Zgodny (Spec+)</span>`;
@@ -599,6 +599,7 @@
           <td class="p-2">${renderDoctorSlot(dateStr, 1, currentShift.doctor1_id, d1)}</td>
           <td class="p-2">${renderDoctorSlot(dateStr, 2, currentShift.doctor2_id, d2)}</td>
           <td class="p-2">${renderDoctorSlot(dateStr, 3, currentShift.doctor3_id, d3)}</td>
+          <td class="p-2">${renderDoctorSlot(dateStr, 4, currentShift.doctor4_id, d4)}</td>
           <td class="p-2 text-center no-print">
             <button onclick="openAvailModal('${dateStr}', '${day} (${dayName})')" class="text-xs bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-600 px-2 py-1 rounded border border-slate-200 transition">
               <i class="fa-solid fa-users mr-1 text-slate-400"></i> ${availCount} dostępnych
@@ -643,7 +644,7 @@
     function updateShiftSlot(dateStr, slotIndex, docId) {
       if (!isCoordinator) return;
       if (!state.shifts[dateStr]) {
-        state.shifts[dateStr] = { doctor1_id: null, doctor2_id: null, doctor3_id: null };
+        state.shifts[dateStr] = { doctor1_id: null, doctor2_id: null, doctor3_id: null, doctor4_id: null };
       }
       state.shifts[dateStr][`doctor${slotIndex}_id`] = docId || null;
       renderScheduleTable();
@@ -685,6 +686,7 @@
       document.getElementById("modal-avail-details").style.display = 'none';
     }
 
+    // AUTOMATYCZNE PLANOWANIE: 4 OSOBY NA DOBĘ
     function generateAutomaticSchedule() {
       if (!isCoordinator) return;
       const { numDays, year, month } = getDaysInCurrentMonth();
@@ -696,6 +698,11 @@
         return;
       }
 
+      if (allDocs.length < 4) {
+        showToast("Musisz dodać min. 4 lekarzy do zespołu!", "error");
+        return;
+      }
+
       const shiftCounts = {};
       state.doctors.forEach(d => { shiftCounts[d.id] = 0; });
       const newShifts = {};
@@ -704,7 +711,12 @@
         const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         const prevDateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day - 1).padStart(2, '0')}`;
         const prevAssigned = prevDateStr in newShifts 
-          ? [newShifts[prevDateStr].doctor1_id, newShifts[prevDateStr].doctor2_id, newShifts[prevDateStr].doctor3_id] 
+          ? [
+              newShifts[prevDateStr].doctor1_id, 
+              newShifts[prevDateStr].doctor2_id, 
+              newShifts[prevDateStr].doctor3_id,
+              newShifts[prevDateStr].doctor4_id
+            ] 
           : [];
 
         const getCandidateScore = (doc) => {
@@ -717,6 +729,7 @@
           return score;
         };
 
+        // 1. Wybierz Specjalistę na Slot 1
         const sortedSpecs = [...specialists].sort((a, b) => getCandidateScore(b) - getCandidateScore(a));
         const chosenSpec = sortedSpecs[0] && getCandidateScore(sortedSpecs[0]) > -5000 ? sortedSpecs[0] : null;
 
@@ -726,7 +739,8 @@
           shiftCounts[chosenSpec.id]++;
         }
 
-        for (let slot = assignedToday.length; slot < 3; slot++) {
+        // 2. Wybierz pozostałych dyżurnych aż do 4 osób
+        for (let slot = assignedToday.length; slot < 4; slot++) {
           const eligible = allDocs
             .filter(d => !assignedToday.includes(d.id))
             .sort((a, b) => getCandidateScore(b) - getCandidateScore(a));
@@ -743,14 +757,15 @@
         newShifts[dateStr] = {
           doctor1_id: assignedToday[0] || null,
           doctor2_id: assignedToday[1] || null,
-          doctor3_id: assignedToday[2] || null
+          doctor3_id: assignedToday[2] || null,
+          doctor4_id: assignedToday[3] || null
         };
       }
 
       state.shifts = newShifts;
       renderScheduleTable();
       saveAllData(false);
-      showToast("Wygenerowano grafik! Kliknij 'Zapisz grafik', aby potwierdzić.");
+      showToast("Wygenerowano grafik (4 dyżurnych)! Kliknij 'Zapisz grafik'.");
     }
 
     function renderDoctorStats() {
@@ -765,6 +780,7 @@
         if (s.doctor1_id && counts[s.doctor1_id] !== undefined) counts[s.doctor1_id]++;
         if (s.doctor2_id && counts[s.doctor2_id] !== undefined) counts[s.doctor2_id]++;
         if (s.doctor3_id && counts[s.doctor3_id] !== undefined) counts[s.doctor3_id]++;
+        if (s.doctor4_id && counts[s.doctor4_id] !== undefined) counts[s.doctor4_id]++;
       });
 
       state.doctors.forEach(doc => {
