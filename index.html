@@ -193,7 +193,10 @@
         
         <div class="flex items-center space-x-3">
           <div>
-            <h2 class="text-base font-extrabold text-slate-900 tracking-tight">Harmonogram dyżurów lekarskich</h2>
+            <div class="flex items-center space-x-2">
+              <h2 class="text-base font-extrabold text-slate-900 tracking-tight">Harmonogram dyżurów lekarskich</h2>
+              <span id="schedule-status-badge" class="px-2 py-0.5 rounded-full text-[10px] font-bold"></span>
+            </div>
             <p class="text-xs text-slate-500 font-medium">Miesięczny plan obsady OIT</p>
           </div>
           <div class="flex items-center bg-slate-50 p-1 rounded-2xl border border-slate-200 ml-2">
@@ -212,8 +215,15 @@
             </button>
             <button onclick="saveScheduleToSupabase(true)" class="bg-brand-600 hover:bg-brand-700 text-white px-3.5 py-2 rounded-xl font-bold text-xs flex items-center space-x-1.5 shadow-xs transition">
               <i class="fa-solid fa-floppy-disk"></i>
-              <span>Zapisz grafik</span>
+              <span>Zapisz szkic</span>
             </button>
+            
+            <!-- Przycisk Publikacji / Cofnięcia publikacji -->
+            <button id="btn-toggle-publish" onclick="togglePublishSchedule()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-2 rounded-xl font-bold text-xs flex items-center space-x-1.5 shadow-xs transition">
+              <i class="fa-solid fa-bullhorn"></i>
+              <span id="btn-toggle-publish-label">Opublikuj grafik</span>
+            </button>
+
             <!-- Pobieranie PDF dostępne wyłącznie dla koordynatora -->
             <button onclick="downloadExactPDF()" class="bg-slate-900 hover:bg-slate-800 text-white px-3.5 py-2 rounded-xl font-bold text-xs flex items-center space-x-1.5 shadow-xs transition">
               <i class="fa-solid fa-file-arrow-down text-rose-400"></i>
@@ -228,8 +238,20 @@
         </div>
       </div>
 
-      <!-- TABELA GRAFIKU (EKRAN) -->
-      <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+      <!-- KOMUNIKAT DLA LEKARZY, GDY GRAFIK NIE JEST JESZCZE OPUBLIKOWANY -->
+      <div id="schedule-locked-banner" style="display: none;" class="bg-white p-12 rounded-2xl border border-slate-200 text-center shadow-xs">
+        <div class="w-14 h-14 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-3 shadow-2xs">
+          <i class="fa-solid fa-clock-rotate-left text-2xl"></i>
+        </div>
+        <h3 class="text-base font-extrabold text-slate-900 mb-1">Harmonogram w trakcie przygotowania</h3>
+        <p class="text-xs text-slate-500 max-w-md mx-auto">
+          Grafik na wybrany miesiąc jest aktualnie tworzony przez Koordynatora Dyżurów. 
+          Zostanie udostępniony lekarzom natychmiast po oficjalnej publikacji.
+        </p>
+      </div>
+
+      <!-- TABELA GRAFIKU (WIDOCZNA ZAWSZE DLA KOORDYNATORA ORAZ DLA LEKARZY PO PUBLIKACJI) -->
+      <div id="schedule-table-card" class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
         <div class="overflow-x-auto">
           <table class="w-full text-left text-xs border-collapse">
             <thead>
@@ -335,7 +357,6 @@
     <div id="pdf-render-area" class="p-4">
       <div class="flex justify-between items-end border-b-2 border-slate-900 pb-1.5 mb-2">
         <div>
-          <!-- Zaktualizowana pełna nazwa oddziału -->
           <h2 class="text-[10pt] font-extrabold uppercase tracking-tight text-slate-900 leading-tight">Oddział Anestezjologii i Intensywnej Terapii</h2>
           <p class="text-[8pt] font-semibold text-slate-700">Wielospecjalistyczny Szpital Miejski im. Józefa Strusia w Poznaniu</p>
         </div>
@@ -444,12 +465,11 @@
       doctors: [],
       monthly_limits: {},
       availabilities: {},
-      shifts: {}
+      shifts: {},
+      published_months: {} // klucz: `schedule_published_YYYY-MM` -> 'true' / 'false'
     };
 
-    // Robocze deklaracje lekarza przed kliknięciem "Zapisz"
     let localDoctorAvail = {};
-
     let currentDate = new Date();
     currentDate.setDate(1);
     let selectedDoctorId = "";
@@ -526,16 +546,32 @@
       return `${y}-${m}`;
     }
 
+    function isCurrentMonthPublished() {
+      const mKey = getCurrentMonthKey();
+      return state.published_months[mKey] === true;
+    }
+
     async function fetchAllDataFromSupabase() {
       try {
-        const { data: pinData } = await supabaseClient.from('app_settings').select('*').eq('key', 'admin_pin').single();
-        if (pinData) state.admin_pin = pinData.value;
+        // 1. Ustawienia (PIN oraz statusy publikacji miesięcy)
+        const { data: settingsData } = await supabaseClient.from('app_settings').select('*');
+        if (settingsData) {
+          settingsData.forEach(row => {
+            if (row.key === 'admin_pin') state.admin_pin = row.value;
+            if (row.key.startsWith('schedule_published_')) {
+              const mKey = row.key.replace('schedule_published_', '');
+              state.published_months[mKey] = (row.value === 'true');
+            }
+          });
+        }
 
+        // 2. Lekarze
         const { data: docsData } = await supabaseClient.from('doctors').select('*').order('name');
         if (docsData && docsData.length > 0) {
           state.doctors = docsData;
         }
 
+        // 3. Limity miesięczne
         const { data: limitsData } = await supabaseClient.from('doctor_monthly_limits').select('*');
         if (limitsData) {
           state.monthly_limits = {};
@@ -547,6 +583,7 @@
           });
         }
 
+        // 4. Dyspozycje
         const { data: availData } = await supabaseClient.from('availabilities').select('*');
         if (availData) {
           state.availabilities = {};
@@ -555,6 +592,7 @@
           });
         }
 
+        // 5. Grafiki (Shifts)
         const { data: shiftData } = await supabaseClient.from('shifts').select('*');
         if (shiftData) {
           state.shifts = {};
@@ -641,7 +679,7 @@
 
       if (isCoordinator) {
         badge.className = "hidden sm:inline-flex items-center px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold shadow-2xs";
-        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 mr-2"></span><span>Koordynator (Edycja i Podgląd)</span>`;
+        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 mr-2"></span><span>Koordynator (Edycja i Publikacja)</span>`;
         if (coordControls) coordControls.style.display = 'flex';
         if (unlockBtn) unlockBtn.style.display = 'none';
         if (statsPanel) statsPanel.style.display = 'block';
@@ -649,7 +687,7 @@
         if (thStatus) thStatus.style.display = 'table-cell';
         if (banner) {
           banner.className = "bg-emerald-50 border border-emerald-200 p-3.5 rounded-2xl flex items-center justify-between text-xs text-emerald-900";
-          banner.innerHTML = `<div class="flex items-center space-x-2.5"><i class="fa-solid fa-shield-halved text-emerald-600 text-sm"></i><span><strong>Tryb Koordynatora:</strong> Widzisz pełne deklaracje wszystkich lekarzy w kalendarzu i tabeli.</span></div>`;
+          banner.innerHTML = `<div class="flex items-center space-x-2.5"><i class="fa-solid fa-shield-halved text-emerald-600 text-sm"></i><span><strong>Tryb Koordynatora:</strong> Widzisz pełne deklaracje wszystkich lekarzy oraz możesz publikować grafik.</span></div>`;
         }
       } else {
         badge.className = "hidden sm:inline-flex items-center px-3 py-1.5 rounded-xl bg-slate-100 text-slate-600 text-xs font-semibold border border-slate-200";
@@ -712,7 +750,6 @@
 
     function handleDoctorChange() {
       selectedDoctorId = document.getElementById("doctor-select").value;
-      // Czyścimy bufor roboczy przy zmianie lekarza
       localDoctorAvail = {};
       updateTargetShiftsInputs();
       renderDoctorCalendar();
@@ -815,7 +852,6 @@
 
         const card = document.createElement("div");
 
-        // W trybie koordynatora pokazujemy dane z bazy; w trybie lekarza tylko bufor roboczy przed zapisem
         let status = 'none';
         if (isCoordinator && selectedDoctorId) {
           status = state.availabilities[`${selectedDoctorId}_${dateStr}`] || 'none';
@@ -880,17 +916,79 @@
           }, { onConflict: 'doctor_id,date' });
         }
       } else {
-        // Tryb Lekarza: zmiana tylko w buforze roboczym (zapis dopiero po kliknięciu przycisku)
         const current = localDoctorAvail[dateStr] || 'none';
         localDoctorAvail[dateStr] = cycle[current];
         renderDoctorCalendar();
       }
     }
 
+    // ==================== ZARZĄDZANIE PUBLIKACJĄ GRAFIKU ====================
+    async function togglePublishSchedule() {
+      if (!isCoordinator) return;
+      const mKey = getCurrentMonthKey();
+      const currentPublished = isCurrentMonthPublished();
+      const newStatus = !currentPublished;
+
+      state.published_months[mKey] = newStatus;
+
+      const { error } = await supabaseClient.from('app_settings').upsert({
+        key: `schedule_published_${mKey}`,
+        value: String(newStatus)
+      });
+
+      if (!error) {
+        showToast(newStatus ? "Grafik został opublikowany dla lekarzy!" : "Cofnięto publikację grafiku (tryb szkicu)");
+        renderScheduleTable();
+      } else {
+        showToast("Błąd zapisu statusu publikacji", "error");
+      }
+    }
+
     // ==================== TABELA GRAFIKU ====================
     function renderScheduleTable() {
       const tbody = document.getElementById("schedule-table-body");
+      const lockedBanner = document.getElementById("schedule-locked-banner");
+      const tableCard = document.getElementById("schedule-table-card");
+      const statusBadge = document.getElementById("schedule-status-badge");
+      const publishBtn = document.getElementById("btn-toggle-publish");
+      const publishBtnLabel = document.getElementById("btn-toggle-publish-label");
+
       if (!tbody) return;
+
+      const isPublished = isCurrentMonthPublished();
+
+      // 1. Oznaczenie statusu grafiku w nagłówku
+      if (statusBadge) {
+        if (isPublished) {
+          statusBadge.className = "px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200";
+          statusBadge.innerHTML = `<i class="fa-solid fa-circle-check mr-1"></i> Opublikowany`;
+        } else {
+          statusBadge.className = "px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200";
+          statusBadge.innerHTML = `<i class="fa-solid fa-pen-ruler mr-1"></i> Szkic roboczy`;
+        }
+      }
+
+      // 2. Przycisk publikacji dla koordynatora
+      if (publishBtn && publishBtnLabel) {
+        if (isPublished) {
+          publishBtn.className = "bg-amber-600 hover:bg-amber-700 text-white px-3.5 py-2 rounded-xl font-bold text-xs flex items-center space-x-1.5 shadow-xs transition";
+          publishBtnLabel.innerText = "Cofnij do szkicu";
+        } else {
+          publishBtn.className = "bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-2 rounded-xl font-bold text-xs flex items-center space-x-1.5 shadow-xs transition";
+          publishBtnLabel.innerText = "Opublikuj grafik";
+        }
+      }
+
+      // 3. Widoczność dla zwykłego lekarza: ukryj jeśli nieopublikowany
+      if (!isCoordinator && !isPublished) {
+        if (lockedBanner) lockedBanner.style.display = 'block';
+        if (tableCard) tableCard.style.display = 'none';
+        return;
+      } else {
+        if (lockedBanner) lockedBanner.style.display = 'none';
+        if (tableCard) tableCard.style.display = 'block';
+      }
+
       tbody.innerHTML = "";
       const { numDays, year, month } = getDaysInCurrentMonth();
 
@@ -1098,7 +1196,6 @@
             ].filter(Boolean)
           : [];
 
-        // Filtrujemy tylko lekarzy z deklaracją 'preferred' lub 'available', którzy nie dyżurowali wczoraj
         const eligibleDocs = state.doctors.filter(doc => {
           if (prevAssigned.includes(doc.id)) return false;
           const pref = state.availabilities[`${doc.id}_${dateStr}`];
@@ -1156,7 +1253,7 @@
 
       state.shifts = newShifts;
       renderScheduleTable();
-      showToast("Wygenerowano grafik!");
+      showToast("Wygenerowano szkic grafiku!");
     }
 
     async function saveScheduleToSupabase(notify = true) {
@@ -1173,7 +1270,7 @@
 
         const { error } = await supabaseClient.from('shifts').upsert(rows, { onConflict: 'date' });
         if (!error) {
-          if (notify) showToast("Grafik zapisany w bazie!");
+          if (notify) showToast("Szkic grafiku zapisany w bazie!");
         } else {
           showToast("Błąd zapisu grafiku", "error");
         }
